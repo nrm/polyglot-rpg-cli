@@ -1,0 +1,181 @@
+# Этот файл сгенерирован автоматически...
+- term: Action Die
+  translation: Кубик действия
+  context: '- One six-sided die (d6) for each player. This is your **action die**.'
+- term: Action Roll
+  translation: Бросок действия
+  context: Most moves are based on risky actions you are taking. You are attacking with your sword, making a dangerous climb,
+    or healing an ally. These moves use dice to determine the outcome. This is called an ...
+- term: Asset Cards
+  translation: Карты ресурсов
+  context: '- A printed **character sheet** for each player and printed **asset cards** (available at ironswornrpg.com).'
+- term: Assets
+  translation: Ресурсы
+  context: You use your **character sheet** to track your stats, overall condition, and progress in your quests. You also
+    have **assets** (page 21), which are abilities you choose when you create your character ...
+- term: Bond
+  translation: Связь
+  context: When you search an area, ask questions, conduct an investigation, or follow a track, roll +wits. If you act within
+    a community or ask questions of a person with whom you share a bond, add +1.
+- term: Burning Momentum
+  translation: Иссякающий импульс
+  context: '## BURNING MOMENTUM'
+- term: Challenge Dice
+  translation: Кубики испытания
+  context: '- Two ten-sided dice (d10) for each player. These are your **challenge dice**.'
+- term: Challenge Rank
+  translation: Сложность
+  context: If you are marking progress on your bonds progress track, you always mark 1 tick unless a move tells you otherwise.
+    Bonds are not given a challenge rank. To learn more about bonds, see page 24.
+- term: Clash
+  translation: Столкновение
+  context: Similarly, when you fight, you *Strike* (page 79) or *Clash* (page 80) to inflict harm on your foe. To move forward
+    in your quest, you use the *Reach a Milestone* move (page 100). These incremental mo...
+- term: Companion
+  translation: Компаньон
+  context: A **companion** is a special type of asset. Unlike normal NPCs, they can provide mechanical benefits through their
+    abilities, and they have a health track to record harm. If the text of a move refers ...
+- term: Debility
+  translation: Недостаток
+  context: After you burn momentum, you must adjust your momentum track to your **momentum reset** value. The default reset
+    is +2. This value may be lowered when your character suffers from a **debility** (page ...
+- term: Endure Harm
+  translation: Перенести ранения
+  context: '**Harm** represents physical damage and fatigue. You inflict harm on your foes in combat, and you *Endure Harm*
+    when you are attacked or fail to overcome a physical hazard or ordeal.'
+- term: Endure Stress
+  translation: Перенести стресс
+  context: '**Stress** represents mental burdens and trauma. When you face mental shock or despair, make the *Endure Stress*
+    move (page 95). As part of that move, you reduce your spirit track by the amount of str...'
+- term: Firstborn
+  translation: Перворожденный
+  context: '- Many areas of the Ironlands are unexplored and uninhabited except by the firstborn—beings such as elves, giants,
+    and the wolf-like varou.'
+- term: Forge a Bond
+  translation: Установить связь
+  context: '- When you establish a new relationship with a character in your world and *Forge a Bond* (page 74), you mark
+    your bond on a progress track.'
+- term: Harm
+  translation: Ранения
+  context: '- **Suffer moves** (page 90) occur when you endure hardship, such as suffering physical harm or facing a dispiriting
+    challenge.'
+- term: Iron Vow
+  translation: Железная клятва
+  context: '- When you *Swear an Iron Vow* (page 98), a progress track represents the challenges you overcome on your way
+    to achieving your ultimate goal.'
+- term: Iron Vows
+  translation: Железные клятвы
+  context: In the Ironsworn tabletop roleplaying game, you are a hero sworn to undertake perilous quests in the dark fantasy
+    setting of the Ironlands. You will explore untracked wilds, fight desperate battles, f...
+- term: Ironlands
+  translation: Железные земли
+  context: '*[Image: Dramatic black and white photograph of a sword planted in grassy ground next to a weathered skull, evoking
+    themes of mortality, ancient battles, and the harsh reality of the Ironlands setting...'
+- term: Ironsworn
+  translation: Клянущиеся железом
+  context: '## PLAYING IRONSWORN'
+- term: Journey
+  translation: Путешествие
+  context: Some moves measure your headway against an extended challenge, such as a journey or fight, using a **progress track**
+    (page 14). When you are ready to resolve the challenge, you make a **progress roll...
+- term: Max Momentum
+  translation: Максимальный импульс
+  context: '## MAX MOMENTUM'
+- term: Mechanics
+  translation: Механика
+  context: '## MECHANICS AND THE FICTION'
+- term: Minimum Momentum
+  translation: Минимальный импульс
+  context: '## MINIMUM MOMENTUM'
+- term: Momentum
+  translation: Импульс
+  context: '**As you take action, you build or lose momentum** (page 11). Positive momentum can help improve the result of
+    an action. Negative momentum can undermine an otherwise successful action.'
+- term: Momentum Track
+  translation: Шкала импульса
+  context: The **momentum track** is on the left side of your character sheet. You can use a paper clip or token to mark the
+    current value.
+- term: Moves
+  translation: Действия
+  context: '> **Not required, but helpful: Printed reference sheets for moves, the blank Ironlands map, and other worksheets
+    available at ironswornrpg.com.**'
+- term: NPCs
+  translation: Неигровые персонажи
+  context: If you are playing as a GM, you can focus on guiding the game and responding to your player's questions and actions.
+    Since NPCs don't make moves, you won't need to make action rolls. However, you migh...
+- term: Negative Momentum
+  translation: Отрицательный импульс
+  context: '**As you take action, you build or lose momentum** (page 11). Positive momentum can help improve the result of
+    an action. Negative momentum can undermine an otherwise successful action.'
+- term: Old World
+  translation: Старый мир
+  context: '- Two generations ago, your people were driven to the Ironlands from their former homes in the Old World.'
+- term: Oracle Dice
+  translation: Кубики оракула
+  context: '- Optionally, another pair of ten-sided dice to use as your **oracle dice**.'
+- term: Oracle Roll
+  translation: Бросок оракула
+  context: Other moves utilize a different kind of dice roll, called an **oracle roll** (page 22). These moves help determine
+    the outcome of uncertain events out of your character's control. If you're playing so...
+- term: Oracles
+  translation: Оракулы
+  context: '# ORACLES'
+- term: Path
+  translation: Путь
+  context: On a strong hit, you discover something helpful and specific. The path you must follow or action you must take
+    to make progress is made clear. Envision what you learn (*Ask the Oracle* if unsure), and...
+- term: Pay the Price
+  translation: Заплатить цену
+  context: On a miss, your investigation unearths a dire threat or reveals an unwelcome truth that undermines your quest.
+    *Pay the Price*.
+- term: Positive Momentum
+  translation: Положительный импульс
+  context: '**As you take action, you build or lose momentum** (page 11). Positive momentum can help improve the result of
+    an action. Negative momentum can undermine an otherwise successful action.'
+- term: Progress Moves
+  translation: Действия прогресса
+  context: '# PROGRESS MOVES'
+- term: Progress Roll
+  translation: Бросок прогресса
+  context: Some moves measure your headway against an extended challenge, such as a journey or fight, using a **progress track**
+    (page 14). When you are ready to resolve the challenge, you make a **progress roll...
+- term: Progress Score
+  translation: Очки прогресса
+  context: You don't make an action roll when you make a progress move. Instead, you tally the number of fully filled progress
+    boxes (those with four ticks). This is your **progress score**. Then, roll your chal...
+- term: Progress Track
+  translation: Шкала прогресса
+  context: '**Your vows** (page 35) are your sacred oaths to complete perilous quests. Each vow has a rank and is managed
+    through a progress track.'
+- term: Reset Momentum
+  translation: Сбросить импульс
+  context: Контекст не найден.
+- term: Slayer
+  translation: Истребитель
+  context: '**SLAYER**'
+- term: Stress
+  translation: Стресс
+  context: '# STRESS'
+- term: Strike
+  translation: Удар
+  context: Similarly, when you fight, you *Strike* (page 79) or *Clash* (page 80) to inflict harm on your foe. To move forward
+    in your quest, you use the *Reach a Milestone* move (page 100). These incremental mo...
+- term: Strong Hit
+  translation: Сильный удар
+  context: On a strong hit, you discover something helpful and specific. The path you must follow or action you must take
+    to make progress is made clear. Envision what you learn (*Ask the Oracle* if unsure), and...
+- term: Ticks
+  translation: Отметки
+  context: '> - Extreme journey: 2 ticks per waypoint.'
+- term: Varou
+  translation: Вару
+  context: '- Many areas of the Ironlands are unexplored and uninhabited except by the firstborn—beings such as elves, giants,
+    and the wolf-like varou.'
+- term: Vow
+  translation: Клятва
+  context: In the Ironlands, a **vow** is sacred. When you declare your solemn promise to serve or aid someone, or to complete
+    a personal quest, your honor is bound to that vow. Abandoning or recanting an oath i...
+- term: Weak Hit
+  translation: Слабый удар
+  context: On a weak hit, the information complicates your quest or introduces a new danger. Envision what you discover (*Ask
+    the Oracle* if unsure), and take +1 momentum.
