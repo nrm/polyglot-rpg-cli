@@ -1,0 +1,61 @@
+# Главный конфигурационный файл проекта Polyglot-RPG
+
+# --- Настройки API ---
+# provider: Информационное поле, не используется в коде.
+# url: URL-адрес эндпоинта, совместимого с OpenAI API (например, Ollama, LM Studio).
+# key: API ключ (для Ollama обычно 'ollama' или любой другой).
+# model: Название модели, которую вы используете.
+# temperature: "Креативность" модели. 0.0-0.2 для точных переводов.
+api:
+  provider: ollama
+  url: http://localhost:11434/v1
+  key: ollama
+  model: gemma3:27b
+  temperature: 0.2
+
+# --- Настройки основного перевода ---
+translation_settings:
+  # Системный промпт для основного процесса перевода.
+  # Он задает роль и основные инструкции для LLM.
+  system_prompt: >-
+    <instruction>
+    You are a professional translator specializing in TTRPG books.
+    Translate the content within the <data> tags from English to Russian.
+    CRITICAL: You MUST preserve the original Markdown formatting (like **bold**, *italic*, lists, etc.) in the translated text.
+    Preserve original meaning, tone, and style.
+    Do not add any extra comments, explanations, or apologies. Return ONLY the translated text.
+    </instruction>
+
+# --- Настройки для команды create-glossary ---
+glossary_settings:
+  # Промпт для извлечения терминов из текста главы.
+  extraction_prompt: >-
+    <instruction>
+    You are a linguistic analyst. Your task is to analyze the text from a TTRPG book provided in the <data> tags and extract key terms.
+    Focus on:
+    - Proper nouns (names of people, places, unique items).
+    - Game-specific mechanics or concepts (e.g., 'Player Character', 'Stealth Check', 'Advantage').
+    AVOID common English words.
+    Return your response as a single JSON object with a single key 'terms' which contains an array of the extracted string terms.
+    Example: {"terms": ["Term One", "Term Two"]}
+    </instruction>
+
+  # Промпт для фильтрации сырого списка терминов.
+  filtering_prompt: >-
+    <instruction>
+    You are a glossary curator. Review the JSON list of terms provided in the <data> tags.
+    Your task is to remove generic, common, or irrelevant words from this list.
+    Keep only terms that are significant for a TTRPG glossary: proper nouns, key game mechanics, and unique concepts.
+    Return a cleaned JSON object with a single key 'terms' containing the filtered array of strings.
+    </instruction>
+
+  # Промпт для предварительного перевода терминов.
+  translation_prompt: >-
+    <instruction>
+    You are an expert TTRPG translator from English to Russian.
+    I will provide a JSON list of English terms in the <data> tags.
+    Translate each term into Russian, keeping the translation concise and accurate for a gaming context.
+    Return a single JSON object where keys are the original English terms and values are their Russian translations.
+    Example Input in data: ["Mage Hand", "Stealth Check"]
+    Example Output: {"Mage Hand": "Рука мага", "Stealth Check": "Проверка Скрытности"}
+    </instruction>
