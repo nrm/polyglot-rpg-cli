@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polyglot-rpg"
+version = "0.1.0"
+authors = [
+  { name="nrm", email="rbetra@gmail.com" },
+]
+description = "Инструмент для полуавтоматического перевода TTRPG материалов с помощью LLM."
+readme = "README.md"
+requires-python = ">=3.8"
+# --- ИЗМЕНЕНИЕ 1: Обновленный формат лицензии ---
+# Указываем стандартный SPDX-идентификатор для MIT лицензии.
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    # "License :: OSI Approved :: MIT License", # <-- Эту строку можно убрать, она больше не нужна
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Topic :: Text Processing",
+]
+
+dependencies = [
+    "typer[all]",
+    "openai",
+    "markdown-it-py",
+    "markdownify",
+    "pyyaml",
+    "tqdm",
+    "tiktoken",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/nrm/polyglot-rpg"
+"Bug Tracker" = "https://github.com/nrm/polyglot-rpg/issues"
+
+[project.scripts]
+polyglot-rpg = "polyglot_rpg.main:app"
+
+# --- ИЗМЕНЕНИЕ 2: Явное указание пакетов ---
+# Эта секция говорит setuptools: "Не ищи пакеты автоматически,
+# а возьми только тот, что я указал в списке".
+[tool.setuptools]
+packages = ["polyglot_rpg"]

@@ -1,0 +1,55 @@
+# .gitignore for Polyglot-RPG
+
+# --- Python cache & build artifacts ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+build/
+dist/
+sdist/
+wheelhouse/
+pip-wheel-metadata/
+
+
+# --- Virtual Environments ---
+# Never commit your virtual environment
+.venv/
+venv/
+env/
+ENV/
+
+
+# --- IDE configuration files ---
+.vscode/
+.idea/
+
+
+# --- Secrets & Environment Variables ---
+# Never commit your secrets or API keys
+.env
+*.env
+
+
+# --- Operating System specific files ---
+# macOS
+.DS_Store
+._*
+# Windows
+Thumbs.db
+
+
+# --- Local dependency management files ---
+# These are not needed as pyproject.toml is the source of truth
+poetry.lock
+requirements.txt
+
+
+# --- Project-specific generated files ---
+# Note: We do NOT ignore the project output folders like '03_translation_workspace/'
+# or '.cache/' here. This is intentional. The 'example_project' should be
+# fully version-controlled so new users can see how it works.
+#
+# If you create your own translation projects inside this repository for testing,
+# you are responsible for not committing their output.
