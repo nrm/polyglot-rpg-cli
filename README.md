@@ -32,7 +32,7 @@
 1.  **Клонируйте репозиторий:**
     ```bash
     git clone https://github.com/nrm/polyglot-rpg-cli.git
-    cd polyglot-rpg
+    cd polyglot-rpg-cli
     ```
 
 2.  **(Рекомендуется)** Создайте и активируйте виртуальное окружение:
