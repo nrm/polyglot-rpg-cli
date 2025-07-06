@@ -31,7 +31,7 @@
 
 1.  **Клонируйте репозиторий:**
     ```bash
-    git clone https://github.com/ВАШ-ЛОГИН/polyglot-rpg.git
+    git clone https://github.com/nrm/polyglot-rpg-cli.git
     cd polyglot-rpg
     ```
 
