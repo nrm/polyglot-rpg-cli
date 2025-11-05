@@ -10,10 +10,12 @@ authors = [
 ]
 description = "Инструмент для полуавтоматического перевода TTRPG материалов с помощью LLM."
 readme = "README.md"
-requires-python = ">=3.8"
-# --- ИЗМЕНЕНИЕ 1: Обновленный формат лицензии ---
-# Указываем стандартный SPDX-идентификатор для MIT лицензии.
-license = "MIT"
+# --- ИЗМЕНЕНИЕ 1: Обновлен минимальный Python на 3.9+ ---
+# Необходимо для использования синтаксиса type hints: list[str], dict[str, Any] и т.д.
+requires-python = ">=3.9"
+# --- ИЗМЕНЕНИЕ 2: Исправлен формат лицензии для PEP 621 ---
+# license должна быть объектом с 'text' или 'file', а не простой строкой
+license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Python :: 3",
     # "License :: OSI Approved :: MIT License", # <-- Эту строку можно убрать, она больше не нужна
@@ -39,7 +41,7 @@ dependencies = [
 [project.scripts]
 polyglot-rpg = "polyglot_rpg.main:app"
 
-# --- ИЗМЕНЕНИЕ 2: Явное указание пакетов ---
+# --- ИЗМЕНЕНИЕ 3: Явное указание пакетов ---
 # Эта секция говорит setuptools: "Не ищи пакеты автоматически,
 # а возьми только тот, что я указал в списке".
 [tool.setuptools]

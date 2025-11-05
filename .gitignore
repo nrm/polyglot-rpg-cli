@@ -53,3 +53,7 @@ requirements.txt
 #
 # If you create your own translation projects inside this repository for testing,
 # you are responsible for not committing their output.
+#
+example_project/PointsOfLight.tar
+example_project/PointsOfLight/
+uv.lock
