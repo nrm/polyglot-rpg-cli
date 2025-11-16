@@ -237,7 +237,7 @@ def _tokens_to_json(tokens: List[Token]) -> List[Dict]:
     """Сериализует токены в JSON-совместимый формат."""
     return [t.as_dict() for t in tokens]
 
-def _extract_strings_from_json(data) -> list[str]:
+def _extract_strings_from_json(data) -> List[str]:
     """Рекурсивно извлекает все строковые значения из любой вложенной структуры."""
     found_strings = []
     if isinstance(data, dict):
