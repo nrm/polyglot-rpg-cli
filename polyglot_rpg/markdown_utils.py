@@ -71,10 +71,26 @@ class MarkdownSplitter:
             end_line = headings[heading_idx + 1][0] if heading_idx + 1 < len(headings) else len(self.lines)
 
             # Create chapter name from heading
-            chapter_title = headings[heading_idx][1].replace('**', '').strip()
-            chapter_title = chapter_title.replace(' ', '_').replace(':', '').replace('/', '_')
+            chapter_title = headings[heading_idx][1]
+
+            # Clean up common markdown artifacts from PDF conversion
+            chapter_title = re.sub(r'<span[^>]*>.*?</span>', '', chapter_title)  # Remove span tags
+            chapter_title = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', chapter_title)  # Remove markdown links, keep text
+            chapter_title = chapter_title.replace('**', '').strip()  # Remove bold markers
+
+            # Remove/replace problematic characters for filenames
+            chapter_title = chapter_title.replace('&', 'and')
+            chapter_title = re.sub(r'[<>:"/\\|?*]', '', chapter_title)  # Remove invalid filename chars
+            chapter_title = re.sub(r'\s+', '_', chapter_title)  # Replace spaces with underscores
+            chapter_title = re.sub(r'_+', '_', chapter_title)  # Collapse multiple underscores
+            chapter_title = chapter_title.strip('_')  # Remove leading/trailing underscores
+
+            # Limit filename length (max 100 chars for the title part)
+            if len(chapter_title) > 100:
+                chapter_title = chapter_title[:100].rstrip('_')
+
             chapter_num = i - start_idx
-            chapter_name = f"{chapter_num}_{chapter_title}"
+            chapter_name = f"{chapter_num:03d}_{chapter_title}"  # Use 3-digit padding for better sorting
 
             chapters[chapter_name] = self.extract_chapter(start_line, end_line)
 

@@ -59,3 +59,8 @@ example_project/PointsOfLight/
 example_project/perplexity/
 example_project/PointsOfLight2
 uv.lock
+
+# Test markdown files
+SoYouWantToBeGameMaster.md
+02_input_chapters/
+PointsOfLight.md
