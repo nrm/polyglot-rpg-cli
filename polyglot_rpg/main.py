@@ -587,14 +587,14 @@ def translate(project_dir: Path = typer.Argument(..., help="Путь к дире
 
 @app.command()
 def split_markdown(
-    markdown_file: Path = typer.Argument(..., help="Путь к markdown файлу (из marker).", exists=True),
-    metadata_file: Path = typer.Argument(..., help="Путь к metadata.json (из marker).", exists=True),
+    markdown_file: Path = typer.Argument(..., help="Путь к markdown файлу.", exists=True),
+    metadata_file: Optional[Path] = typer.Argument(None, help="Путь к metadata.json (опционально, для marker).", exists=False),
     output_dir: Optional[Path] = typer.Option(None, "--output", "-o", help="Директория для сохранения глав (по умолчанию: 02_input_chapters рядом с исходным файлом).")
 ):
     """
     Разделяет markdown файл на главы по заголовкам уровня 1 (#).
 
-    Утилита для пост-обработки вывода marker (PDF → Markdown конвертер).
+    Metadata файл опционален. Используется только для marker output.
     """
     console.print("=" * 70)
     console.print("📖 [bold]РАЗДЕЛЕНИЕ MARKDOWN НА ГЛАВЫ[/bold]")
@@ -606,7 +606,10 @@ def split_markdown(
         output_dir = markdown_file.parent / INPUT_DIR_NAME
 
     console.print(f"📄 Исходный файл: [cyan]{markdown_file}[/cyan]")
-    console.print(f"📋 Метаданные:    [cyan]{metadata_file}[/cyan]")
+    if metadata_file:
+        console.print(f"📋 Метаданные:    [cyan]{metadata_file}[/cyan]")
+    else:
+        console.print(f"📋 Метаданные:    [yellow]не указаны (опционально)[/yellow]")
     console.print(f"📁 Выходная папка: [cyan]{output_dir}[/cyan]")
     console.print()
 

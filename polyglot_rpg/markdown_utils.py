@@ -7,19 +7,24 @@ Post-processing tools for marker (PDF-to-Markdown) output.
 import json
 import re
 from pathlib import Path
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 
 class MarkdownSplitter:
     """Splits markdown into chapters based on # headings."""
 
-    def __init__(self, md_path: Path, meta_path: Path):
+    def __init__(self, md_path: Path, meta_path: Optional[Path] = None):
         self.md_path = md_path
         self.meta_path = meta_path
         self.content = md_path.read_text(encoding='utf-8')
         self.lines = self.content.split('\n')
-        self.metadata = json.loads(meta_path.read_text(encoding='utf-8'))
-        self.toc_titles = [item['title'] for item in self.metadata.get('table_of_contents', [])]
+
+        # Metadata is optional - only needed if you want access to marker's table_of_contents
+        self.metadata = None
+        self.toc_titles = []
+        if meta_path and meta_path.exists():
+            self.metadata = json.loads(meta_path.read_text(encoding='utf-8'))
+            self.toc_titles = [item['title'] for item in self.metadata.get('table_of_contents', [])]
 
     def find_major_headings(self) -> List[Tuple[int, str]]:
         """Find all # (level 1) headings with their line numbers."""

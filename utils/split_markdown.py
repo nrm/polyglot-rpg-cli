@@ -24,34 +24,35 @@ except ImportError:
 
 def main():
     # Parse command line arguments
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 2:
         print("📖 Markdown Splitter (post-processor for marker output)")
         print()
         print("Usage:")
-        print("  python3 split_markdown.py <markdown_file> <metadata_json>")
+        print("  python3 split_markdown.py <markdown_file> [metadata_json]")
         print()
         print("Examples:")
+        print("  python3 split_markdown.py document.md")
         print("  python3 split_markdown.py document.md document_meta.json")
         print()
         print("Arguments:")
-        print("  markdown_file   - Path to markdown file (output from marker)")
-        print("  metadata_json   - Path to metadata.json (from marker)")
+        print("  markdown_file   - Path to markdown file")
+        print("  metadata_json   - Path to metadata.json (optional, for marker output)")
         print()
         print("Output:")
         print("  Creates 02_input_chapters/ directory with split markdown files")
         print()
-        print("Note: You can also use the CLI command: polyglot-rpg split-markdown <markdown_file> <metadata_json>")
+        print("Note: You can also use the CLI command: polyglot-rpg split-markdown <markdown_file> [metadata_json]")
         return False
 
     md_file = Path(sys.argv[1]).resolve()
-    meta_file = Path(sys.argv[2]).resolve()
+    meta_file = Path(sys.argv[2]).resolve() if len(sys.argv) >= 3 else None
     output_dir = md_file.parent / '02_input_chapters'
 
     if not md_file.exists():
         print(f"❌ Error: {md_file} not found")
         return False
 
-    if not meta_file.exists():
+    if meta_file and not meta_file.exists():
         print(f"❌ Error: {meta_file} not found")
         return False
 
