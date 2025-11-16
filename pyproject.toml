@@ -25,7 +25,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "typer[all]",
+    "typer",
     "openai",
     "markdown-it-py",
     "markdownify",
