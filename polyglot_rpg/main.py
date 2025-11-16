@@ -631,7 +631,14 @@ def split_markdown(
         console.print("✅ [bold]ВАЛИДАЦИЯ[/bold]\n")
         console.print(f"  Исходный файл:    {stats['original_chars']:,} символов")
         console.print(f"  Сумма глав:       {stats['total_chars']:,} символов")
-        console.print(f"  Разница:          {stats['diff']} символов")
+        console.print(f"  Разница:          {stats['diff']} символов", end="")
+
+        # Calculate percentage
+        if stats['original_chars'] > 0:
+            diff_pct = (stats['diff'] / stats['original_chars']) * 100
+            console.print(f" ({diff_pct:.3f}%)")
+        else:
+            console.print()
 
         if not is_valid:
             console.print(f"  [bold red]❌ ОШИБКА: Разница слишком большая![/bold red]")

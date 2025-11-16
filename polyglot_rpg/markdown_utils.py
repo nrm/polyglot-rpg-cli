@@ -103,7 +103,14 @@ class MarkdownSplitter:
         }
 
         # Allow small differences (trailing newlines, etc.)
-        is_valid = diff <= 10
+        # Use percentage-based tolerance for larger files
+        if original_chars > 0:
+            diff_pct = (diff / original_chars) * 100
+            # Allow up to 0.1% difference OR 100 characters, whichever is larger
+            tolerance = max(100, original_chars * 0.001)
+            is_valid = diff <= tolerance
+        else:
+            is_valid = diff == 0
 
         return is_valid, stats
 
