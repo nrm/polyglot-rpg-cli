@@ -56,4 +56,6 @@ requirements.txt
 #
 example_project/PointsOfLight.tar
 example_project/PointsOfLight/
+example_project/perplexity/
+example_project/PointsOfLight2
 uv.lock

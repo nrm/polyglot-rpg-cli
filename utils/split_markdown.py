@@ -3,117 +3,24 @@
 Split markdown files into chapters based on major heading structure.
 Uses metadata.json (from marker) for validation and context.
 
+This is a standalone wrapper around polyglot_rpg.markdown_utils.MarkdownSplitter.
+
 Usage:
     python3 split_markdown.py <path_to_markdown> <path_to_metadata>
 
 Example:
-    python3 split_markdown.py PointsOfLight.md PointsOfLight_meta.json
-    python3 split_markdown.py ../example_project/PointsOfLight/PointsOfLight.md ../example_project/PointsOfLight/PointsOfLight_meta.json
+    python3 split_markdown.py document.md document_meta.json
 """
 
-import json
-import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
 
-class MarkdownSplitter:
-    """Splits markdown into chapters based on # headings."""
-
-    def __init__(self, md_path: Path, meta_path: Path):
-        self.md_path = md_path
-        self.meta_path = meta_path
-        self.content = md_path.read_text(encoding='utf-8')
-        self.lines = self.content.split('\n')
-        self.metadata = json.loads(meta_path.read_text(encoding='utf-8'))
-        self.toc_titles = [item['title'] for item in self.metadata['table_of_contents']]
-
-    def find_major_headings(self) -> List[Tuple[int, str]]:
-        """Find all # (level 1) headings with their line numbers."""
-        headings = []
-        for i, line in enumerate(self.lines):
-            # Match # heading but not ## or ###
-            if re.match(r'^# ', line):
-                title = line.lstrip('# ').strip()
-                headings.append((i, title))
-        return headings
-
-    def extract_chapter(self, start_line: int, end_line: int = None) -> str:
-        """Extract chapter content from start to end line."""
-        if end_line is None:
-            end_line = len(self.lines)
-        return '\n'.join(self.lines[start_line:end_line])
-
-    def split_chapters(self) -> dict:
-        """Split markdown into chapters based on major headings."""
-        headings = self.find_major_headings()
-
-        print(f"🔍 Found {len(headings)} major headings (# level):\n")
-        for i, (line_num, title) in enumerate(headings):
-            print(f"  {i+1}. Line {line_num+1:4d}: {title}")
-
-        if len(headings) < 2:
-            raise ValueError(f"Expected at least 2 major headings, found {len(headings)}")
-
-        chapters = {}
-
-        # Strategy: Use each heading as a chapter boundary
-        # Detect if first heading is a document title (short, no "part" or "chapter" keywords)
-        # If so, include it with the next chapter; otherwise start from it
-
-        first_heading_text = headings[0][1].lower()
-        is_title = (
-            len(headings[0][1]) < 50 and
-            'part' not in first_heading_text and
-            'chapter' not in first_heading_text and
-            first_heading_text not in ['introduction', 'getting started']
-        )
-
-        start_idx = 1 if is_title else 0
-
-        for i in range(start_idx, len(headings)):
-            heading_idx = i
-            start_line = 0 if i == start_idx else headings[heading_idx][0]
-            end_line = headings[heading_idx + 1][0] if heading_idx + 1 < len(headings) else len(self.lines)
-
-            # Create chapter name from heading
-            chapter_title = headings[heading_idx][1].replace('**', '').strip()
-            chapter_title = chapter_title.replace(' ', '_').replace(':', '').replace('/', '_')
-            chapter_num = i - start_idx
-            chapter_name = f"{chapter_num}_{chapter_title}"
-
-            chapters[chapter_name] = self.extract_chapter(start_line, end_line)
-
-        return chapters
-
-    def validate_chapters(self, chapters: dict) -> bool:
-        """Validate that all content is preserved."""
-        total_chars = sum(len(ch) for ch in chapters.values())
-        original_chars = len(self.content)
-        diff = abs(total_chars - original_chars)
-
-        print(f"\n✅ VALIDATION\n")
-        print(f"  Original file:    {original_chars:,} characters")
-        print(f"  Sum of chapters:  {total_chars:,} characters")
-        print(f"  Difference:       {diff} characters")
-
-        # Allow small differences (trailing newlines, etc.)
-        if diff > 10:
-            print(f"  ❌ ERROR: Character count mismatch is too large!")
-            return False
-
-        if diff > 0:
-            print(f"  ⚠️  Small difference detected (likely trailing newlines) - acceptable")
-        else:
-            print(f"  ✅ All content preserved exactly!")
-
-        # Check chapter sizes
-        print(f"\n📊 Chapter sizes:\n")
-        for name, content in chapters.items():
-            lines = len(content.split('\n'))
-            print(f"  {name:25s}: {len(content):6,} chars, {lines:4d} lines")
-
-        return True
+# Import from the main package
+try:
+    from polyglot_rpg.markdown_utils import MarkdownSplitter
+except ImportError:
+    print("Error: polyglot_rpg package not found. Install it with: pip install -e .")
+    sys.exit(1)
 
 def main():
     # Parse command line arguments
@@ -124,8 +31,7 @@ def main():
         print("  python3 split_markdown.py <markdown_file> <metadata_json>")
         print()
         print("Examples:")
-        print("  python3 split_markdown.py PointsOfLight.md PointsOfLight_meta.json")
-        print("  python3 split_markdown.py ../example_project/PointsOfLight/PointsOfLight.md ../example_project/PointsOfLight/PointsOfLight_meta.json")
+        print("  python3 split_markdown.py document.md document_meta.json")
         print()
         print("Arguments:")
         print("  markdown_file   - Path to markdown file (output from marker)")
@@ -133,6 +39,8 @@ def main():
         print()
         print("Output:")
         print("  Creates 02_input_chapters/ directory with split markdown files")
+        print()
+        print("Note: You can also use the CLI command: polyglot-rpg split-markdown <markdown_file> <metadata_json>")
         return False
 
     md_file = Path(sys.argv[1]).resolve()
@@ -154,14 +62,35 @@ def main():
 
     # Create splitter and split
     splitter = MarkdownSplitter(md_file, meta_file)
+    headings = splitter.find_major_headings()
+
+    print(f"🔍 Found {len(headings)} major headings (# level):\n")
+    for i, (line_num, title) in enumerate(headings):
+        print(f"  {i+1}. Line {line_num+1:4d}: {title}")
+
     chapters = splitter.split_chapters()
 
     # Validate
-    is_valid = splitter.validate_chapters(chapters)
+    is_valid, stats = splitter.validate_chapters(chapters)
+
+    print(f"\n✅ VALIDATION\n")
+    print(f"  Original file:    {stats['original_chars']:,} characters")
+    print(f"  Sum of chapters:  {stats['total_chars']:,} characters")
+    print(f"  Difference:       {stats['diff']} characters")
 
     if not is_valid:
-        print("\n❌ Validation failed!")
+        print(f"\n❌ Validation failed!")
         return False
+
+    if stats['diff'] > 0:
+        print(f"  ⚠️  Small difference detected (likely trailing newlines) - acceptable")
+    else:
+        print(f"  ✅ All content preserved exactly!")
+
+    # Check chapter sizes
+    print(f"\n📊 Chapter sizes:\n")
+    for name, ch_stats in stats['chapters'].items():
+        print(f"  {name:25s}: {ch_stats['chars']:6,} chars, {ch_stats['lines']:4d} lines")
 
     # Create output directory
     output_dir.mkdir(parents=True, exist_ok=True)

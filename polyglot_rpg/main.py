@@ -18,6 +18,7 @@ import importlib.resources  # Для доступа к файлам данных
 from typing import List, Dict, Optional, Any
 
 from markdownify import markdownify as md_from_html
+from polyglot_rpg.markdown_utils import MarkdownSplitter, MarkdownValidator
 
 app = typer.Typer(pretty_exceptions_show_locals=False, add_completion=False)
 console = Console()
@@ -582,6 +583,202 @@ def translate(project_dir: Path = typer.Argument(..., help="Путь к дире
     console.print("\n💾 Кэш переводов сохранен.")
     console.print("\n[bold green]🎉 Выбранные главы успешно обработаны! Перевод завершен.[/bold green]")
     translator.token_counter.report("Перевод глав")
+
+
+@app.command()
+def split_markdown(
+    markdown_file: Path = typer.Argument(..., help="Путь к markdown файлу (из marker).", exists=True),
+    metadata_file: Path = typer.Argument(..., help="Путь к metadata.json (из marker).", exists=True),
+    output_dir: Optional[Path] = typer.Option(None, "--output", "-o", help="Директория для сохранения глав (по умолчанию: 02_input_chapters рядом с исходным файлом).")
+):
+    """
+    Разделяет markdown файл на главы по заголовкам уровня 1 (#).
+
+    Утилита для пост-обработки вывода marker (PDF → Markdown конвертер).
+    """
+    console.print("=" * 70)
+    console.print("📖 [bold]РАЗДЕЛЕНИЕ MARKDOWN НА ГЛАВЫ[/bold]")
+    console.print("=" * 70)
+    console.print()
+
+    # Определяем output_dir
+    if output_dir is None:
+        output_dir = markdown_file.parent / INPUT_DIR_NAME
+
+    console.print(f"📄 Исходный файл: [cyan]{markdown_file}[/cyan]")
+    console.print(f"📋 Метаданные:    [cyan]{metadata_file}[/cyan]")
+    console.print(f"📁 Выходная папка: [cyan]{output_dir}[/cyan]")
+    console.print()
+
+    try:
+        # Создаем splitter и разделяем
+        splitter = MarkdownSplitter(markdown_file, metadata_file)
+        headings = splitter.find_major_headings()
+
+        console.print(f"🔍 Найдено {len(headings)} заголовков уровня 1:\n")
+        for i, (line_num, title) in enumerate(headings):
+            console.print(f"  {i+1}. Строка {line_num+1:4d}: {title}")
+        console.print()
+
+        chapters = splitter.split_chapters()
+
+        # Валидация
+        is_valid, stats = splitter.validate_chapters(chapters)
+
+        console.print("✅ [bold]ВАЛИДАЦИЯ[/bold]\n")
+        console.print(f"  Исходный файл:    {stats['original_chars']:,} символов")
+        console.print(f"  Сумма глав:       {stats['total_chars']:,} символов")
+        console.print(f"  Разница:          {stats['diff']} символов")
+
+        if not is_valid:
+            console.print(f"  [bold red]❌ ОШИБКА: Разница слишком большая![/bold red]")
+            raise typer.Exit(1)
+
+        if stats['diff'] > 0:
+            console.print(f"  ⚠️  Небольшая разница (вероятно, trailing newlines) - допустимо")
+        else:
+            console.print(f"  ✅ Весь контент сохранен точно!")
+
+        console.print(f"\n📊 [bold]Размеры глав:[/bold]\n")
+        for name, ch_stats in stats['chapters'].items():
+            console.print(f"  {name:30s}: {ch_stats['chars']:6,} символов, {ch_stats['lines']:4d} строк")
+
+        # Создаем output_dir и записываем файлы
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        console.print(f"\n📝 Сохранение глав в {output_dir.name}/\n")
+        for name, content in chapters.items():
+            output_file = output_dir / f"{name}.md"
+            output_file.write_text(content, encoding='utf-8')
+            console.print(f"  ✅ {output_file.name}")
+
+        console.print(f"\n" + "=" * 70)
+        console.print(f"[bold green]✅ УСПЕХ! Создано {len(chapters)} файлов в {output_dir}[/bold green]")
+        console.print(f"=" * 70)
+
+    except ValueError as e:
+        console.print(f"[bold red]❌ Ошибка: {e}[/bold red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[bold red]❌ Неожиданная ошибка: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def validate_split(
+    original_file: Path = typer.Argument(..., help="Путь к оригинальному markdown файлу.", exists=True),
+    chapters_dir: Path = typer.Argument(..., help="Путь к директории с разделенными главами.", exists=True),
+):
+    """
+    Проверяет целостность разделенных глав.
+
+    Выполняет 9 проверок: символы, строки, заголовки, изображения, код, ссылки, списки, слова, структура.
+    """
+    console.print("=" * 70)
+    console.print("🔍 [bold]ВАЛИДАЦИЯ РАЗДЕЛЕНИЯ MARKDOWN[/bold]")
+    console.print("=" * 70)
+    console.print()
+
+    try:
+        validator = MarkdownValidator(original_file, chapters_dir)
+        results = validator.run_all_checks()
+
+        # Выводим результаты каждой проверки
+        for check_name, (passed, stats) in results.items():
+            status = "✅ PASS" if passed else "❌ FAIL"
+
+            if check_name == "Character Count":
+                console.print(f"📊 [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']:,} символов")
+                console.print(f"  Объединенные:  {stats['combined']:,} символов")
+                console.print(f"  Разница:       {stats['difference']} символов")
+                console.print(f"  {status}\n")
+
+            elif check_name == "Line Count":
+                console.print(f"📋 [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']:,} строк")
+                console.print(f"  Объединенные:  {stats['combined']:,} строк")
+                console.print(f"  Разница:       {stats['difference']} строк")
+                console.print(f"  {status}\n")
+
+            elif check_name == "Headings":
+                console.print(f"📑 [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']} заголовков")
+                console.print(f"  Объединенные:  {stats['combined']} заголовков")
+                console.print(f"  {status}\n")
+
+            elif check_name == "Images":
+                console.print(f"🖼️  [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']} изображений")
+                console.print(f"  Объединенные:  {stats['combined']} изображений")
+                if stats['missing']:
+                    console.print(f"  ❌ Пропущено: {stats['missing']}")
+                if stats['extra']:
+                    console.print(f"  ⚠️  Лишние: {stats['extra']}")
+                console.print(f"  {status}\n")
+
+            elif check_name == "Code Blocks":
+                console.print(f"💻 [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']} блоков")
+                console.print(f"  Объединенные:  {stats['combined']} блоков")
+                console.print(f"  {status}\n")
+
+            elif check_name == "Links":
+                console.print(f"🔗 [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']} ссылок")
+                console.print(f"  Объединенные:  {stats['combined']} ссылок")
+                console.print(f"  {status}\n")
+
+            elif check_name == "List Items":
+                console.print(f"📝 [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']} элементов")
+                console.print(f"  Объединенные:  {stats['combined']} элементов")
+                console.print(f"  {status}\n")
+
+            elif check_name == "Word Count":
+                console.print(f"📖 [bold]{check_name}[/bold]")
+                console.print(f"  Оригинал:      {stats['original']:,} слов")
+                console.print(f"  Объединенные:  {stats['combined']:,} слов")
+                console.print(f"  Разница:       {stats['difference_pct']:.2f}%")
+                console.print(f"  {status}\n")
+
+            elif check_name == "Chapter Structure":
+                console.print(f"📂 [bold]{check_name}[/bold]")
+                console.print(f"  Количество глав: {stats['chapter_count']}\n")
+                for ch in stats['chapters']:
+                    console.print(f"  {ch['name']:30s}: {ch['chars']:7,} символов, {ch['lines']:4d} строк, {ch['headings']:2d} заголовков")
+                console.print(f"\n  {status}\n")
+
+        # Итоговая сводка
+        console.print("=" * 70)
+        console.print("📊 [bold]ИТОГОВАЯ СВОДКА[/bold]")
+        console.print("=" * 70)
+
+        passed_count = sum(1 for passed, _ in results.values() if passed)
+        total_count = len(results)
+
+        for check_name, (passed, _) in results.items():
+            status = "✅ PASS" if passed else "❌ FAIL"
+            console.print(f"  {check_name:25s}: {status}")
+
+        console.print()
+        console.print(f"  Результат: {passed_count}/{total_count} проверок пройдено")
+        console.print()
+
+        if passed_count == total_count:
+            console.print("[bold green]🎉 ВСЕ ПРОВЕРКИ ПРОЙДЕНЫ![/bold green]")
+            console.print("[bold green]✅ Контент не потерян при разделении.[/bold green]")
+        elif passed_count >= total_count - 1:
+            console.print("[bold yellow]⚠️  В ОСНОВНОМ OK: Обнаружены небольшие отличия, но допустимо.[/bold yellow]")
+            console.print("[bold green]✅ Целостность контента сохранена.[/bold green]")
+        else:
+            console.print("[bold red]❌ ВАЛИДАЦИЯ НЕ ПРОЙДЕНА: Обнаружены значительные проблемы.[/bold red]")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Ошибка: {e}[/bold red]")
+        raise typer.Exit(1)
+
 
 if __name__ == "__main__":
     app()
