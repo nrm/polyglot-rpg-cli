@@ -191,12 +191,13 @@ class Translator:
 
     def translate_chunk(self, chunk: str) -> str:
         """Переводит один фрагмент текста, используя кэш и глоссарий."""
-        cached = self.cache.get(chunk)
+        # Применяем глоссарий к тексту ПЕРЕД проверкой кеша
+        text_to_translate = self.glossary.apply_to_text(chunk)
+
+        # Проверяем кеш по обработанному тексту
+        cached = self.cache.get(text_to_translate)
         if cached:
             return cached
-
-        # Применяем глоссарий к тексту перед отправкой в LLM
-        text_to_translate = self.glossary.apply_to_text(chunk)
         
         # Оборачиваем текст в теги <data>
         user_message_content = f"<data>\n{text_to_translate}\n</data>"
@@ -221,8 +222,9 @@ class Translator:
                 translation = chunk # Возвращаем оригинальный чанк, не пред-обработанный
             else:
                 translation = re.sub(r"<think>.*?</think>", "", raw_translation, flags=re.DOTALL).strip()
-            
-            self.cache.set(chunk, translation)
+
+            # Кешируем по обработанному тексту (с примененным глоссарием)
+            self.cache.set(text_to_translate, translation)
             return translation
 
         except Exception as e:
