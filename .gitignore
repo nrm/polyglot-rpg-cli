@@ -54,13 +54,5 @@ requirements.txt
 # If you create your own translation projects inside this repository for testing,
 # you are responsible for not committing their output.
 #
-example_project/PointsOfLight.tar
-example_project/PointsOfLight/
-example_project/perplexity/
-example_project/PointsOfLight2
+example_project/
 uv.lock
-
-# Test markdown files
-SoYouWantToBeGameMaster.md
-02_input_chapters/
-PointsOfLight.md
