@@ -85,7 +85,15 @@ Three main commands are exposed via Typer framework (`app = typer.Typer()`):
 
 ```bash
 # Install in editable mode (required for development)
+# Using uv (recommended)
+uv sync
+
+# Or using pip
 pip install -e .
+
+# Install with dev dependencies (pytest, coverage, etc.)
+uv sync --extra dev
+# Or: pip install -e ".[dev]"
 
 # Run a specific command
 polyglot-rpg init example_project/test_project
@@ -95,6 +103,11 @@ polyglot-rpg translate example_project/test_project
 # Check installation
 which polyglot-rpg
 polyglot-rpg --help
+
+# Run tests
+pytest tests/
+pytest tests/ -v  # verbose output
+pytest tests/ --cov=polyglot_rpg  # with coverage
 ```
 
 ## Configuration
@@ -159,8 +172,9 @@ polyglot-rpg translate example_project/ironsworn
 
 ## Important Notes
 
-- **Python 3.8+** required (uses f-strings, type hints, Path)
-- **No tests exist** — add tests if modifying core translation logic
+- **Python 3.9+** required (uses f-strings, type hints with generics like `list[str]`, Path)
+- **Testing**: Tests are located in `tests/` directory. Run with `pytest tests/`. Dev dependencies include pytest and pytest-cov for coverage reporting
 - **Error recovery**: Code is defensive with try-except blocks around LLM calls; original text returned on failure
 - **Multiline tokens**: The AST reconstruction handles complex nested markdown (tables, nested lists, etc.)
 - **Language support**: Currently hardcoded for English→Russian in prompts, but easily configurable via `01_config.yaml`
+- **Translation cache**: Cache is glossary-aware - it stores translations based on glossary-processed text, automatically invalidating when glossary terms change
