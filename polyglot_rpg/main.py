@@ -911,8 +911,8 @@ def proofread(
         system_prompt = config['proofreading_settings']['system_prompt']
 
         # Инициализируем компоненты
-        glossary = Glossary(project.workspace / "2_glossary.final.yaml")
-        cache = ProofreadingCache(project.root / ".cache")
+        glossary = Glossary(project.glossary_final_path)
+        cache = ProofreadingCache(project.project_dir / ".cache")
         token_counter = TokenCounter(config['api']['model'])
 
         # Настройка OpenAI клиента
@@ -922,7 +922,7 @@ def proofread(
         )
 
         # Директории (in-place режим: input = output)
-        input_dir = project.workspace / "4_final_chapters"
+        input_dir = project.final_dir
         output_dir = input_dir
 
         # Получаем список переведённых файлов
