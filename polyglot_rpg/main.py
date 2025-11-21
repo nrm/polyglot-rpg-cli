@@ -301,7 +301,12 @@ def _extract_strings_from_json(data) -> List[str]:
     return found_strings
 
 def _split_text_into_blocks(text: str, chunk_size: int = 3) -> List[str]:
-    """Разбивает текст на блоки по chunk_size параграфов."""
+    """
+    Разбивает текст на блоки по chunk_size параграфов.
+
+    УСТАРЕВШАЯ ФУНКЦИЯ: используется только для обратной совместимости.
+    Для новых вызовов используйте _split_text_by_tokens().
+    """
     # Разбиваем по двойному переводу строки (стандартный разделитель параграфов в Markdown)
     paragraphs = text.split('\n\n')
 
@@ -310,6 +315,41 @@ def _split_text_into_blocks(text: str, chunk_size: int = 3) -> List[str]:
         block = '\n\n'.join(paragraphs[i:i + chunk_size])
         if block.strip():  # Пропускаем пустые блоки
             blocks.append(block)
+
+    return blocks
+
+def _split_text_by_tokens(text: str, max_tokens: int, encoding) -> List[str]:
+    """
+    Разбивает текст на блоки размером примерно max_tokens.
+
+    Разбиение происходит по границам параграфов (\\n\\n) для сохранения
+    смысловой целостности.
+    """
+    paragraphs = text.split('\n\n')
+    blocks = []
+    current_block = []
+    current_tokens = 0
+
+    for para in paragraphs:
+        if not para.strip():
+            continue
+
+        para_tokens = len(encoding.encode(para, disallowed_special=()))
+
+        # Если добавление параграфа превысит лимит и текущий блок не пуст
+        if current_tokens + para_tokens > max_tokens and current_block:
+            # Сохраняем текущий блок
+            blocks.append('\n\n'.join(current_block))
+            current_block = [para]
+            current_tokens = para_tokens
+        else:
+            # Добавляем параграф к текущему блоку
+            current_block.append(para)
+            current_tokens += para_tokens
+
+    # Добавляем последний блок
+    if current_block:
+        blocks.append('\n\n'.join(current_block))
 
     return blocks
 
@@ -886,7 +926,6 @@ def validate_split(
 @app.command()
 def proofread(
     project_dir: Path = typer.Argument(..., help="Директория проекта с переведёнными файлами."),
-    chunk_size: int = typer.Option(3, help="Количество параграфов в одном блоке для вычитки."),
 ):
     """
     Вычитывает переведённые тексты на согласованность, стилистику и грамматику.
@@ -911,6 +950,18 @@ def proofread(
 
         system_prompt = config['proofreading_settings']['system_prompt']
 
+        # Получаем размер контекста и рассчитываем размер блока
+        context_length = config['api'].get('context_length', 8192)
+        max_tokens_config = config['proofreading_settings'].get('max_tokens_per_block', 'auto')
+
+        if max_tokens_config == 'auto' or max_tokens_config is None:
+            # Автоматический расчёт: ~30% от контекста
+            # Оставляем место для системного промпта (~500), глоссария (~500), и ответа модели
+            max_tokens_per_block = int(context_length * 0.30)
+            console.print(f"[dim]ℹ️  Автоматический расчёт размера блока: {max_tokens_per_block} токенов (~30% от {context_length})[/dim]")
+        else:
+            max_tokens_per_block = int(max_tokens_config)
+
         # Инициализируем компоненты
         glossary = Glossary(project.glossary_final_path)
         cache = ProofreadingCache(project.project_dir / ".cache")
@@ -932,14 +983,44 @@ def proofread(
             console.print("[yellow]Сначала выполните команду 'translate'.[/yellow]")
             raise typer.Exit(1)
 
-        translated_files = sorted(input_dir.glob("*.md"))
-        if not translated_files:
+        all_translated_files = sorted(input_dir.glob("*.md"))
+        if not all_translated_files:
             console.print(f"[bold red]❌ В {input_dir} не найдено переведённых файлов (.md).[/bold red]")
             raise typer.Exit(1)
 
+        # --- Интерактивный выбор файлов ---
+        console.print("\n[bold]Выберите файлы для вычитки:[/bold]")
+        for i, file_path in enumerate(all_translated_files):
+            console.print(f"  [cyan]{i + 1}[/cyan]: {file_path.name}")
+        console.print("  [cyan]all[/cyan]: Вычитать все файлы")
+
+        choice = Prompt.ask("Введите номера файлов через запятую (например, 1,3,5) или 'all'", default="all")
+
+        files_to_process = []
+        if choice.lower() == 'all':
+            files_to_process = all_translated_files
+        else:
+            try:
+                indices = [int(i.strip()) - 1 for i in choice.split(',')]
+                files_to_process = [all_translated_files[i] for i in indices if 0 <= i < len(all_translated_files)]
+            except (ValueError, IndexError):
+                console.print("[bold red]Ошибка: Неверный ввод. Пожалуйста, введите корректные числа или 'all'.[/bold red]")
+                raise typer.Exit(1)
+
+        if not files_to_process:
+            console.print("[yellow]Не выбрано ни одного файла. Завершение работы.[/yellow]")
+            raise typer.Exit()
+
+        console.print("\n[green]Будут обработаны следующие файлы:[/green]")
+        for file_path in files_to_process:
+            console.print(f"  - {file_path.name}")
+
+        if not Confirm.ask("\nПродолжить?", default=True):
+            raise typer.Exit()
+
         # Проверка git-статуса
         if _check_git_status(input_dir):
-            console.print("[yellow]⚠️  ВНИМАНИЕ: В 4_final_chapters/ есть незакоммиченные изменения![/yellow]")
+            console.print("\n[yellow]⚠️  ВНИМАНИЕ: В 4_final_chapters/ есть незакоммиченные изменения![/yellow]")
             console.print("[yellow]   Рекомендуется сделать git commit перед вычиткой для возможности отката.[/yellow]")
             console.print()
 
@@ -948,20 +1029,21 @@ def proofread(
                 raise typer.Exit(0)
             console.print()
 
-        console.print(f"📂 Найдено переведённых файлов: [green]{len(translated_files)}[/green]")
+        console.print(f"📂 Найдено переведённых файлов: [green]{len(files_to_process)}[/green]")
         console.print(f"💾 Режим: [yellow]in-place (файлы будут перезаписаны)[/yellow]")
+        console.print(f"📏 Макс. токенов на блок: [cyan]{max_tokens_per_block}[/cyan]")
         console.print()
 
         # Обрабатываем каждый файл
-        for file_path in translated_files:
+        for file_path in files_to_process:
             console.print(f"📄 Обрабатываю: [cyan]{file_path.name}[/cyan]")
 
             # Читаем переведённый текст
             translated_text = file_path.read_text(encoding='utf-8')
 
-            # Разбиваем на блоки
-            blocks = _split_text_into_blocks(translated_text, chunk_size)
-            console.print(f"   📦 Разбито на {len(blocks)} блоков (по {chunk_size} параграфа)")
+            # Разбиваем на блоки по токенам
+            blocks = _split_text_by_tokens(translated_text, max_tokens_per_block, token_counter.encoding)
+            console.print(f"   📦 Разбито на {len(blocks)} блоков (~{max_tokens_per_block} токенов/блок)")
 
             proofread_blocks = []
 
@@ -1028,7 +1110,7 @@ def proofread(
         console.print("[bold green]✅ ВЫЧИТКА ЗАВЕРШЕНА![/bold green]")
         console.print("=" * 70)
         console.print()
-        token_counter.report()
+        token_counter.report("proofread")
 
     except Exception as e:
         console.print(f"[bold red]❌ Ошибка: {e}[/bold red]")

@@ -6,12 +6,14 @@
 # key: API ключ (для Ollama обычно 'ollama' или любой другой).
 # model: Название модели, которую вы используете.
 # temperature: "Креативность" модели. 0.0-0.2 для точных переводов.
+# context_length: Размер контекстного окна модели в токенах (для Ollama см. OLLAMA_CONTEXT_LENGTH).
 api:
   provider: ollama
   url: http://localhost:11434/v1
   key: ollama
   model: gemma3:27b
   temperature: 0.2
+  context_length: 16384
 
 # --- Настройки основного перевода ---
 translation_settings:
@@ -83,3 +85,9 @@ proofreading_settings:
 
     Return ONLY the corrected text, nothing else.
     </instruction>
+
+  # Максимальное количество токенов в одном блоке для вычитки.
+  # Если не указано, автоматически рассчитывается как ~30% от context_length
+  # (чтобы оставить место для системного промпта, глоссария и ответа модели).
+  # Можно задать явно, например: max_tokens_per_block: 5000
+  # max_tokens_per_block: auto
