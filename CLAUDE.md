@@ -170,6 +170,58 @@ polyglot-rpg create-glossary example_project/ironsworn --use-llm --pre-translate
 polyglot-rpg translate example_project/ironsworn
 ```
 
+## Git-Based Workflow (Recommended)
+
+The tool is designed to work seamlessly with git version control. **Recommended workflow:**
+
+### 1. After Translation
+```bash
+polyglot-rpg translate my_project
+git add 03_translation_workspace/4_final_chapters/
+git commit -m "translate: Initial translation with glossary"
+```
+
+### 2. After Proofreading
+```bash
+polyglot-rpg proofread my_project
+# Tool will warn if there are uncommitted changes in 4_final_chapters/
+
+git diff  # Review what proofreading changed
+git add 03_translation_workspace/4_final_chapters/
+git commit -m "proofread: Grammar and style fixes"
+```
+
+### 3. Iterative Glossary Updates
+```bash
+# Found a new term while reviewing proofreading results
+nano 03_translation_workspace/2_glossary.final.yaml
+git commit -am "glossary: Add term 'Ironlands'"
+
+# Re-translate (only affected chunks will be re-processed, thanks to cache)
+polyglot-rpg translate my_project
+git commit -am "translate: Apply new glossary term"
+
+# Re-proofread (cache speeds this up too)
+polyglot-rpg proofread my_project
+git diff  # Check changes
+git commit -am "proofread: Re-check after glossary update"
+```
+
+### 4. Rollback Bad Proofreading
+```bash
+# If proofreading made unwanted changes:
+git revert HEAD
+# or
+git reset --hard HEAD~1
+```
+
+### Key Benefits of Git Integration
+
+- **Safety**: `proofread` command checks for uncommitted changes and warns before overwriting
+- **Transparency**: `git diff` shows exactly what proofreading changed
+- **Rollback**: Easy to revert bad proofreading results
+- **History**: Full audit trail of translation iterations
+
 ## Important Notes
 
 - **Python 3.9+** required (uses f-strings, type hints with generics like `list[str]`, Path)
@@ -178,3 +230,4 @@ polyglot-rpg translate example_project/ironsworn
 - **Multiline tokens**: The AST reconstruction handles complex nested markdown (tables, nested lists, etc.)
 - **Language support**: Currently hardcoded for English→Russian in prompts, but easily configurable via `01_config.yaml`
 - **Translation cache**: Cache is glossary-aware - it stores translations based on glossary-processed text, automatically invalidating when glossary terms change
+- **Proofreading**: The `proofread` command works in-place (overwrites 4_final_chapters/). Use git commits before/after for safety and diff visibility

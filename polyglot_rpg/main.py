@@ -14,6 +14,7 @@ import json
 from markdown_it.token import Token
 import tiktoken
 import hashlib
+import subprocess
 import importlib.resources  # Для доступа к файлам данных внутри пакета
 from typing import List, Dict, Optional, Any
 
@@ -311,6 +312,38 @@ def _split_text_into_blocks(text: str, chunk_size: int = 3) -> List[str]:
 
     return blocks
 
+def _check_git_status(directory: Path) -> bool:
+    """Проверяет, есть ли незакоммиченные изменения в директории."""
+    try:
+        # Проверяем, инициализирован ли git в проекте
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-dir"],
+            cwd=directory.parent.parent,  # Поднимаемся к корню проекта
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            return False  # Git не инициализирован, пропускаем проверку
+
+        # Проверяем статус для конкретной директории
+        result = subprocess.run(
+            ["git", "status", "--porcelain", str(directory)],
+            cwd=directory.parent.parent,
+            capture_output=True,
+            text=True
+        )
+
+        # Если есть вывод — есть изменения
+        return bool(result.stdout.strip())
+
+    except FileNotFoundError:
+        # git не установлен
+        return False
+    except Exception:
+        # Другие ошибки — пропускаем проверку
+        return False
+
 # --- Команды CLI ---
 
 @app.command()
@@ -324,7 +357,6 @@ def init(project_dir: Path = typer.Argument(..., help="Директория дл
     (workspace / AST_DIR_NAME).mkdir(exist_ok=True)
     (workspace / TRANSLATED_AST_DIR_NAME).mkdir(exist_ok=True)
     (workspace / FINAL_DIR_NAME).mkdir(exist_ok=True)
-    (workspace / "5_proofread").mkdir(exist_ok=True)
     (workspace / CACHE_DIR_NAME).mkdir(exist_ok=True)
     (project_dir / INPUT_DIR_NAME / ".gitkeep").touch()
     
@@ -858,8 +890,8 @@ def proofread(
     """
     Вычитывает переведённые тексты на согласованность, стилистику и грамматику.
 
-    Читает файлы из 03_translation_workspace/4_final_chapters/ и сохраняет
-    результаты в 03_translation_workspace/5_proofread/.
+    ВАЖНО: Команда перезаписывает файлы в 4_final_chapters/. Рекомендуется
+    сделать git commit перед запуском для возможности отката изменений.
     """
     console.print("=" * 70)
     console.print("📝 [bold]ВЫЧИТКА ПЕРЕВЕДЁННЫХ ТЕКСТОВ[/bold]")
@@ -889,10 +921,9 @@ def proofread(
             base_url=config['api']['url'],
         )
 
-        # Директории
+        # Директории (in-place режим: input = output)
         input_dir = project.workspace / "4_final_chapters"
-        output_dir = project.workspace / "5_proofread"
-        output_dir.mkdir(exist_ok=True)
+        output_dir = input_dir
 
         # Получаем список переведённых файлов
         if not input_dir.exists():
@@ -905,7 +936,19 @@ def proofread(
             console.print(f"[bold red]❌ В {input_dir} не найдено переведённых файлов (.md).[/bold red]")
             raise typer.Exit(1)
 
+        # Проверка git-статуса
+        if _check_git_status(input_dir):
+            console.print("[yellow]⚠️  ВНИМАНИЕ: В 4_final_chapters/ есть незакоммиченные изменения![/yellow]")
+            console.print("[yellow]   Рекомендуется сделать git commit перед вычиткой для возможности отката.[/yellow]")
+            console.print()
+
+            if not typer.confirm("Продолжить без коммита?", default=False):
+                console.print("[cyan]Вычитка отменена. Сделайте commit и запустите команду снова.[/cyan]")
+                raise typer.Exit(0)
+            console.print()
+
         console.print(f"📂 Найдено переведённых файлов: [green]{len(translated_files)}[/green]")
+        console.print(f"💾 Режим: [yellow]in-place (файлы будут перезаписаны)[/yellow]")
         console.print()
 
         # Обрабатываем каждый файл
