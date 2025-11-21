@@ -4,6 +4,7 @@
 import typer
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
+import openai
 from openai import OpenAI
 from markdown_it import MarkdownIt
 from tqdm import tqdm
