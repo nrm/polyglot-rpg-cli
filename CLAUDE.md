@@ -48,14 +48,14 @@ The entire application is contained in `/polyglot_rpg/main.py` (~750+ lines) wit
 
 ### CLI Commands
 
-Three main commands are exposed via Typer framework (`app = typer.Typer()`):
+Four main commands are exposed via Typer framework (`app = typer.Typer()`):
 
-1. **`init <project_dir>`** (`main.py:256-288`)
+1. **`init <project_dir>`**
    - Creates standardized project structure
    - Creates directories: `02_input_chapters/`, `03_translation_workspace/1_asts/`, `3_translated_asts/`, `4_final_chapters/`, `.cache/`
    - Copies config template from package resources to `01_config.yaml`
 
-2. **`create-glossary <project_dir> [OPTIONS]`** (`main.py:292-443`)
+2. **`create-glossary <project_dir> [OPTIONS]`**
    - Three-stage LLM-driven glossary creation (if `--use-llm` enabled):
      - **Stage 1**: Extract key terms from all input files using extraction prompt
      - **Stage 2**: Filter extracted terms using filtering prompt
@@ -64,16 +64,33 @@ Three main commands are exposed via Typer framework (`app = typer.Typer()`):
    - Outputs `2_glossary.for_review.yaml` for user review and correction
    - User must save corrected version as `2_glossary.final.yaml`
 
-3. **`translate <project_dir>`** (`main.py:467-750+`)
-   - Main translation pipeline
+3. **`translate <project_dir>`**
+   - Main translation pipeline with interactive file selection
    - Parses each markdown file into AST using `markdown-it-py`
    - Identifies translatable text nodes (paragraph, inline, list items)
    - For each translatable chunk:
+     - Applies glossary terms BEFORE checking cache
      - Translates via `Translator.translate_chunk()`
      - Updates AST with translated content
    - Reconstructs markdown from modified AST
    - Outputs translated files to `4_final_chapters/`
    - Saves translation cache for future runs
+
+4. **`proofread <project_dir>`**
+   - Post-translation editing for grammar, agreement, and style
+   - Interactive file selection (like translate)
+   - Reads translated files from `4_final_chapters/`
+   - Smart text splitting by tokens (not paragraphs):
+     - Uses `_split_text_by_tokens()` function
+     - Auto-calculates block size: 30% of `context_length` (configurable)
+     - Example: 16384 context → ~4915 tokens per block
+   - For each block:
+     - Checks proofreading cache first
+     - Finds relevant glossary terms in the block (not all 100+ terms)
+     - Sends to LLM with prompt: fix grammar/style, preserve meaning and terms
+     - Caches results separately from translation cache
+   - Works in-place (overwrites `4_final_chapters/`)
+   - Git integration: warns about uncommitted changes before overwriting
 
 ### Helper Functions
 
@@ -95,10 +112,11 @@ pip install -e .
 uv sync --extra dev
 # Or: pip install -e ".[dev]"
 
-# Run a specific command
+# Run commands
 polyglot-rpg init example_project/test_project
 polyglot-rpg create-glossary example_project/test_project --use-llm --pre-translate
 polyglot-rpg translate example_project/test_project
+polyglot-rpg proofread example_project/test_project
 
 # Check installation
 which polyglot-rpg
@@ -114,11 +132,19 @@ pytest tests/ --cov=polyglot_rpg  # with coverage
 
 The config file (`01_config.yaml`) contains:
 
-- **api**: URL, API key, model name, temperature for LLM
+- **api**:
+  - `url`: OpenAI-compatible API endpoint
+  - `key`: API key (for Ollama usually 'ollama')
+  - `model`: Model name (e.g., 'gemma3:27b')
+  - `temperature`: Creativity level (0.0-0.2 for accurate translations)
+  - `context_length`: Model's context window in tokens (e.g., 16384 for Ollama)
 - **translation_settings**: System prompt for main translation
 - **glossary_settings**: Three prompts for extraction, filtering, and pre-translation stages
+- **proofreading_settings**:
+  - `system_prompt`: Instructions for grammar/style checking
+  - `max_tokens_per_block`: Block size for proofreading (default: auto = 30% of context_length)
 
-Template is in `/polyglot_rpg/default_config_template.yaml`. Default setup uses Ollama at `http://localhost:11434/v1` with `gemma3:27b`.
+Template is in `/polyglot_rpg/default_config_template.yaml`. Default setup uses Ollama at `http://localhost:11434/v1` with `gemma3:27b` and 16384 context.
 
 ## Key Implementation Details
 
@@ -131,16 +157,29 @@ The tool parses Markdown into AST tokens rather than simple regex. This preserve
 
 ### Translation Strategy
 
-1. **Glossary Pre-processing**: Before sending to LLM, glossary terms are substituted in the source text
-2. **Caching**: All translation results cached by SHA256 hash of input
-3. **Error Handling**: If LLM response contains failure phrases (e.g., "I'm ready when you are"), returns original text
+1. **Glossary Pre-processing**: Glossary terms substituted BEFORE cache check (cache is glossary-aware)
+2. **Caching**: Translation cache uses SHA256 hash of glossary-processed text as key
+   - Changing glossary automatically invalidates affected chunks
+   - Unaffected chunks remain cached
+3. **Error Handling**: If LLM response contains failure phrases, returns original text
 4. **Cost Tracking**: All API calls tracked for token and cost reporting
+
+### Proofreading Strategy
+
+1. **Token-based Splitting**: Text split into blocks by token count (not paragraph count)
+   - Uses `tiktoken` for accurate token counting
+   - Block size: auto = 30% of `context_length` (configurable)
+   - Preserves paragraph boundaries (never splits mid-paragraph)
+2. **Selective Glossary**: Only sends terms found in current block (not entire glossary)
+3. **Separate Cache**: Proofreading cache independent from translation cache
+4. **In-place Updates**: Overwrites `4_final_chapters/` with git safety checks
 
 ### User Control Points
 
 - **Glossary review**: Must explicitly rename `2_glossary.for_review.yaml` → `2_glossary.final.yaml` to proceed
-- **File selection**: Interactive prompt to choose which chapters to translate
-- **Iterative refinement**: Cache prevents re-processing, allowing incremental improvements
+- **File selection**: Interactive prompt to choose which chapters to translate/proofread
+- **Iterative refinement**: Both caches prevent re-processing, allowing incremental improvements
+- **Git integration**: Proofread warns about uncommitted changes before overwriting
 
 ## Dependencies
 
