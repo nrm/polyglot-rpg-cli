@@ -130,6 +130,36 @@ class TranslationCache:
         with open(self.cache_path, 'w', encoding='utf-8') as f:
             json.dump(self.cache, f, indent=2, ensure_ascii=False)
 
+class ProofreadingCache:
+    """Управляет кэшированием результатов вычитки для экономии API вызовов."""
+    def __init__(self, cache_dir: Path):
+        self.cache_path = cache_dir / "proofreading_cache.json"
+        self.cache_dir = cache_dir
+        self.cache = self._load()
+
+    def _load(self) -> Dict[str, str]:
+        self.cache_dir.mkdir(exist_ok=True)
+        if not self.cache_path.exists():
+            return {}
+        try:
+            with open(self.cache_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+
+    def _get_hash(self, text: str) -> str:
+        return hashlib.sha256(text.encode('utf-8')).hexdigest()
+
+    def get(self, text: str) -> Optional[str]:
+        return self.cache.get(self._get_hash(text))
+
+    def set(self, original_text: str, proofread_text: str):
+        self.cache[self._get_hash(original_text)] = proofread_text
+
+    def save(self):
+        with open(self.cache_path, 'w', encoding='utf-8') as f:
+            json.dump(self.cache, f, indent=2, ensure_ascii=False)
+
 class Glossary:
     """Загружает и предоставляет доступ к терминам из глоссария."""
     def __init__(self, path: Path):
@@ -160,12 +190,26 @@ class Glossary:
         """Применяет глоссарий к тексту, заменяя термины."""
         if not self.terms:
             return text
-        
+
         # Сортируем термины от длинных к коротким, чтобы избежать частичных замен (например, "Mage Hand" перед "Mage")
         for term, translation in sorted(self.terms.items(), key=lambda i: len(i[0]), reverse=True):
              # Используем regex для замены целых слов, чтобы не заменять 'cat' в 'caterpillar'
             text = re.sub(r'\b' + re.escape(term) + r'\b', translation, text, flags=re.IGNORECASE)
         return text
+
+    def find_terms_in_text(self, text: str) -> Dict[str, str]:
+        """Находит термины из глоссария, которые встречаются в тексте."""
+        if not self.terms:
+            return {}
+
+        found_terms = {}
+        text_lower = text.lower()
+        for term, translation in self.terms.items():
+            # Проверяем, есть ли термин в тексте (case-insensitive)
+            if re.search(r'\b' + re.escape(term.lower()) + r'\b', text_lower):
+                found_terms[term] = translation
+
+        return found_terms
 
 class Translator:
     """Управляет процессом перевода с помощью LLM, кэша и глоссария."""
@@ -254,6 +298,19 @@ def _extract_strings_from_json(data) -> List[str]:
                 found_strings.extend(_extract_strings_from_json(item))
     return found_strings
 
+def _split_text_into_blocks(text: str, chunk_size: int = 3) -> List[str]:
+    """Разбивает текст на блоки по chunk_size параграфов."""
+    # Разбиваем по двойному переводу строки (стандартный разделитель параграфов в Markdown)
+    paragraphs = text.split('\n\n')
+
+    blocks = []
+    for i in range(0, len(paragraphs), chunk_size):
+        block = '\n\n'.join(paragraphs[i:i + chunk_size])
+        if block.strip():  # Пропускаем пустые блоки
+            blocks.append(block)
+
+    return blocks
+
 # --- Команды CLI ---
 
 @app.command()
@@ -267,6 +324,7 @@ def init(project_dir: Path = typer.Argument(..., help="Директория дл
     (workspace / AST_DIR_NAME).mkdir(exist_ok=True)
     (workspace / TRANSLATED_AST_DIR_NAME).mkdir(exist_ok=True)
     (workspace / FINAL_DIR_NAME).mkdir(exist_ok=True)
+    (workspace / "5_proofread").mkdir(exist_ok=True)
     (workspace / CACHE_DIR_NAME).mkdir(exist_ok=True)
     (project_dir / INPUT_DIR_NAME / ".gitkeep").touch()
     
@@ -786,6 +844,147 @@ def validate_split(
         else:
             console.print("[bold red]❌ ВАЛИДАЦИЯ НЕ ПРОЙДЕНА: Обнаружены значительные проблемы.[/bold red]")
             raise typer.Exit(1)
+
+    except Exception as e:
+        console.print(f"[bold red]❌ Ошибка: {e}[/bold red]")
+        raise typer.Exit(1)
+
+
+@app.command()
+def proofread(
+    project_dir: Path = typer.Argument(..., help="Директория проекта с переведёнными файлами."),
+    chunk_size: int = typer.Option(3, help="Количество параграфов в одном блоке для вычитки."),
+):
+    """
+    Вычитывает переведённые тексты на согласованность, стилистику и грамматику.
+
+    Читает файлы из 03_translation_workspace/4_final_chapters/ и сохраняет
+    результаты в 03_translation_workspace/5_proofread/.
+    """
+    console.print("=" * 70)
+    console.print("📝 [bold]ВЫЧИТКА ПЕРЕВЕДЁННЫХ ТЕКСТОВ[/bold]")
+    console.print("=" * 70)
+    console.print()
+
+    try:
+        project = Project(project_dir)
+        config = project.config
+
+        # Проверяем наличие настроек вычитки
+        if 'proofreading_settings' not in config:
+            console.print("[bold red]❌ Ошибка: отсутствует секция 'proofreading_settings' в 01_config.yaml[/bold red]")
+            console.print("[yellow]Подсказка: обновите конфиг из шаблона default_config_template.yaml[/yellow]")
+            raise typer.Exit(1)
+
+        system_prompt = config['proofreading_settings']['system_prompt']
+
+        # Инициализируем компоненты
+        glossary = Glossary(project.workspace / "2_glossary.final.yaml")
+        cache = ProofreadingCache(project.root / ".cache")
+        token_counter = TokenCounter(config['api']['model'])
+
+        # Настройка OpenAI клиента
+        client = openai.OpenAI(
+            api_key=config['api']['key'],
+            base_url=config['api']['url'],
+        )
+
+        # Директории
+        input_dir = project.workspace / "4_final_chapters"
+        output_dir = project.workspace / "5_proofread"
+        output_dir.mkdir(exist_ok=True)
+
+        # Получаем список переведённых файлов
+        if not input_dir.exists():
+            console.print(f"[bold red]❌ Директория {input_dir} не найдена.[/bold red]")
+            console.print("[yellow]Сначала выполните команду 'translate'.[/yellow]")
+            raise typer.Exit(1)
+
+        translated_files = sorted(input_dir.glob("*.md"))
+        if not translated_files:
+            console.print(f"[bold red]❌ В {input_dir} не найдено переведённых файлов (.md).[/bold red]")
+            raise typer.Exit(1)
+
+        console.print(f"📂 Найдено переведённых файлов: [green]{len(translated_files)}[/green]")
+        console.print()
+
+        # Обрабатываем каждый файл
+        for file_path in translated_files:
+            console.print(f"📄 Обрабатываю: [cyan]{file_path.name}[/cyan]")
+
+            # Читаем переведённый текст
+            translated_text = file_path.read_text(encoding='utf-8')
+
+            # Разбиваем на блоки
+            blocks = _split_text_into_blocks(translated_text, chunk_size)
+            console.print(f"   📦 Разбито на {len(blocks)} блоков (по {chunk_size} параграфа)")
+
+            proofread_blocks = []
+
+            # Вычитываем каждый блок
+            for i, block in enumerate(tqdm(blocks, desc="   Вычитка", unit="блок"), 1):
+                # Проверяем кеш
+                cached = cache.get(block)
+                if cached:
+                    proofread_blocks.append(cached)
+                    continue
+
+                # Находим термины из глоссария в этом блоке
+                found_terms = glossary.find_terms_in_text(block)
+
+                # Формируем промпт с терминами
+                if found_terms:
+                    terms_list = '\n'.join([f"- {en} → {ru}" for en, ru in found_terms.items()])
+                    glossary_section = f"\n\nГлоссарий терминов (НЕ ИЗМЕНЯТЬ):\n{terms_list}"
+                else:
+                    glossary_section = ""
+
+                user_message_content = f"<data>\n{block}\n</data>{glossary_section}"
+
+                # Отправляем в LLM
+                try:
+                    response = client.chat.completions.create(
+                        model=config['api']['model'],
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message_content}
+                        ],
+                        temperature=config['api']['temperature']
+                    )
+
+                    proofread_block = response.choices[0].message.content.strip()
+
+                    # Считаем токены
+                    token_counter.add_input(system_prompt + user_message_content)
+                    token_counter.add_output(proofread_block)
+
+                    # Кешируем
+                    cache.set(block, proofread_block)
+                    proofread_blocks.append(proofread_block)
+
+                except Exception as e:
+                    console.print(f"\n[yellow]⚠️  Ошибка при вычитке блока {i}: {e}[/yellow]")
+                    console.print(f"[yellow]   Использую оригинальный текст.[/yellow]")
+                    proofread_blocks.append(block)
+
+            # Собираем вычитанный текст
+            proofread_text = '\n\n'.join(proofread_blocks)
+
+            # Сохраняем
+            output_file = output_dir / file_path.name
+            output_file.write_text(proofread_text, encoding='utf-8')
+            console.print(f"   ✅ Сохранено: [green]{output_file.name}[/green]")
+            console.print()
+
+        # Сохраняем кеш
+        cache.save()
+
+        # Выводим статистику
+        console.print("=" * 70)
+        console.print("[bold green]✅ ВЫЧИТКА ЗАВЕРШЕНА![/bold green]")
+        console.print("=" * 70)
+        console.print()
+        token_counter.report()
 
     except Exception as e:
         console.print(f"[bold red]❌ Ошибка: {e}[/bold red]")

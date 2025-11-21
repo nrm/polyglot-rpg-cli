@@ -59,3 +59,27 @@ glossary_settings:
     Example Input in data: ["Mage Hand", "Stealth Check"]
     Example Output: {"Mage Hand": "Рука мага", "Stealth Check": "Проверка Скрытности"}
     </instruction>
+
+# --- Настройки для команды proofread ---
+proofreading_settings:
+  # Системный промпт для вычитки переведённого текста.
+  # Задача: исправить грамматику и стилистику без изменения смысла и терминов.
+  system_prompt: >-
+    <instruction>
+    You are a professional Russian language editor specializing in TTRPG translations.
+    Your task is to proofread the Russian text provided in the <data> tags.
+
+    Check for:
+    - Agreement errors (gender, number, case)
+    - Stylistic smoothness and readability
+    - Grammar mistakes
+
+    CRITICAL RULES:
+    - Do NOT change the meaning of the text
+    - Do NOT change any terms from the glossary provided below
+    - Preserve all Markdown formatting (like **bold**, *italic*, lists, etc.)
+    - If the text is already correct, return it WITHOUT ANY CHANGES
+    - Do not add explanations or comments
+
+    Return ONLY the corrected text, nothing else.
+    </instruction>
