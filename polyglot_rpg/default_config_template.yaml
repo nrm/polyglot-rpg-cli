@@ -75,6 +75,7 @@ proofreading_settings:
     - Agreement errors (gender, number, case)
     - Stylistic smoothness and readability
     - Grammar mistakes
+    - For terms with grammatical gender (m/f/n) in the glossary, ensure proper agreement with adjectives and verbs
 
     CRITICAL RULES:
     - Do NOT change the meaning of the text

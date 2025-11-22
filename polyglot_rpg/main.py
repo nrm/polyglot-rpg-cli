@@ -168,20 +168,31 @@ class Glossary:
         self.path = path
         self.terms = self._load()
 
-    def _load(self) -> Dict[str, str]:
+    def _load(self) -> Dict[str, dict]:
         if not self.path.exists():
             console.print("📖 Глоссарий не найден. Перевод будет выполнен без него.")
             return {}
-        
+
         console.print(f"📖 Найден глоссарий: [green]{self.path}[/green]")
         with open(self.path, 'r', encoding='utf-8') as f:
             glossary_data = yaml.safe_load(f)
-        
+
         if not glossary_data:
             console.print(f"   [yellow]Предупреждение: Глоссарий пуст.[/yellow]")
             return {}
-            
-        terms = {item['term']: item['translation'] for item in glossary_data if item.get('term') and item.get('translation')}
+
+        # Поддерживаем два формата:
+        # 1. Новый: {term: str, translation: str, gender?: str}
+        # 2. Старый: {term: str, translation: str}
+        terms = {}
+        for item in glossary_data:
+            if item.get('term') and item.get('translation'):
+                term = item['term']
+                terms[term] = {
+                    'translation': item['translation'],
+                    'gender': item.get('gender')  # Может быть None для обратной совместимости
+                }
+
         if terms:
             console.print(f"   ✅ Загружено {len(terms)} терминов.")
         else:
@@ -194,22 +205,26 @@ class Glossary:
             return text
 
         # Сортируем термины от длинных к коротким, чтобы избежать частичных замен (например, "Mage Hand" перед "Mage")
-        for term, translation in sorted(self.terms.items(), key=lambda i: len(i[0]), reverse=True):
+        for term, term_data in sorted(self.terms.items(), key=lambda i: len(i[0]), reverse=True):
              # Используем regex для замены целых слов, чтобы не заменять 'cat' в 'caterpillar'
+            translation = term_data['translation']
             text = re.sub(r'\b' + re.escape(term) + r'\b', translation, text, flags=re.IGNORECASE)
         return text
 
-    def find_terms_in_text(self, text: str) -> Dict[str, str]:
-        """Находит термины из глоссария, которые встречаются в тексте."""
+    def find_terms_in_text(self, text: str) -> Dict[str, dict]:
+        """Находит термины из глоссария, которые встречаются в тексте.
+
+        Возвращает словарь: {term: {translation: str, gender: Optional[str]}}
+        """
         if not self.terms:
             return {}
 
         found_terms = {}
         text_lower = text.lower()
-        for term, translation in self.terms.items():
+        for term, term_data in self.terms.items():
             # Проверяем, есть ли термин в тексте (case-insensitive)
             if re.search(r'\b' + re.escape(term.lower()) + r'\b', text_lower):
-                found_terms[term] = translation
+                found_terms[term] = term_data
 
         return found_terms
 
@@ -1060,8 +1075,19 @@ def proofread(
 
                 # Формируем промпт с терминами
                 if found_terms:
-                    terms_list = '\n'.join([f"- {en} → {ru}" for en, ru in found_terms.items()])
+                    terms_list = '\n'.join([f"- {en} → {data['translation']}" for en, data in found_terms.items()])
                     glossary_section = f"\n\nГлоссарий терминов (НЕ ИЗМЕНЯТЬ):\n{terms_list}"
+
+                    # Добавляем секцию с грамматическими родами, если есть термины с указанным полом
+                    gendered_terms = {data['translation']: data['gender']
+                                      for data in found_terms.values()
+                                      if data.get('gender')}
+
+                    if gendered_terms:
+                        gender_list = '\n'.join([f"- {translation} ({gender})"
+                                                for translation, gender in gendered_terms.items()])
+                        glossary_section += f"\n\nГрамматические роды для согласования:\n{gender_list}"
+                        glossary_section += "\n\nВАЖНО: Слова с указанным родом (m/f/n) должны быть согласованы в тексте по смыслу (прилагательные, глаголы в прошедшем времени и т.д.)."
                 else:
                     glossary_section = ""
 

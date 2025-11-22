@@ -171,8 +171,51 @@ The tool parses Markdown into AST tokens rather than simple regex. This preserve
    - Block size: auto = 30% of `context_length` (configurable)
    - Preserves paragraph boundaries (never splits mid-paragraph)
 2. **Selective Glossary**: Only sends terms found in current block (not entire glossary)
-3. **Separate Cache**: Proofreading cache independent from translation cache
-4. **In-place Updates**: Overwrites `4_final_chapters/` with git safety checks
+3. **Grammatical Gender Support**: For terms with `gender` field, adds separate section in prompt
+   - Helps LLM ensure proper agreement with adjectives and verbs
+   - Only terms with specified gender are included in this section
+4. **Separate Cache**: Proofreading cache independent from translation cache
+5. **In-place Updates**: Overwrites `4_final_chapters/` with git safety checks
+
+### Glossary Format with Grammatical Gender
+
+The glossary supports an optional `gender` field (m/f/n) for terms requiring proper grammatical agreement:
+
+```yaml
+- term: Basilisk
+  translation: Василиск
+  gender: m
+
+- term: Mage Hand
+  translation: Рука мага
+  gender: f
+
+- term: Black Iron
+  translation: Черное железо
+  gender: n
+
+- term: Alliance
+  translation: Союз
+  # gender field is optional - omit if not needed
+```
+
+**When and how to use:**
+- Add `gender` field manually when editing `2_glossary.for_review.yaml`
+- Use for proper nouns and terms where agreement matters (typically m/f/n in Russian)
+- During `proofread`, terms with gender are passed to LLM in a separate section:
+  ```
+  Глоссарий терминов (НЕ ИЗМЕНЯТЬ):
+  - Basilisk → Василиск
+  - Mage Hand → Рука мага
+
+  Грамматические роды для согласования:
+  - Василиск (m)
+  - Рука мага (f)
+
+  ВАЖНО: Слова с указанным родом должны быть согласованы в тексте...
+  ```
+- The `translate` command does NOT use gender information (only applies glossary substitution)
+- Backward compatible: old glossaries without `gender` continue to work
 
 ### User Control Points
 
