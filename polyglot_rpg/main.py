@@ -21,6 +21,7 @@ from typing import List, Dict, Optional, Any
 
 from markdownify import markdownify as md_from_html
 from polyglot_rpg.markdown_utils import MarkdownSplitter, MarkdownValidator
+from polyglot_rpg import __version__
 
 app = typer.Typer(pretty_exceptions_show_locals=False, add_completion=False)
 console = Console()
@@ -405,6 +406,7 @@ def _check_git_status(directory: Path) -> bool:
 @app.command()
 def init(project_dir: Path = typer.Argument(..., help="Директория для создания нового проекта.")):
     """Инициализирует новую структуру проекта для перевода."""
+    console.print(f"[dim]Polyglot-RPG v{__version__}[/dim]")
     console.print(f"▶️  Инициализация проекта в [cyan]{project_dir}[/cyan]...")
     project_dir.mkdir(exist_ok=True)
     (project_dir / INPUT_DIR_NAME).mkdir(exist_ok=True)
@@ -444,10 +446,12 @@ def create_glossary(
     pre_translate: bool = typer.Option(False, "--pre-translate", help="Использовать LLM для предварительного перевода терминов (требует --use-llm)."),
 ):
     """Сканирует исходные тексты и создает черновик глоссария."""
+    console.print(f"[dim]Polyglot-RPG v{__version__}[/dim]")
+
     if pre_translate and not use_llm:
         console.print("[bold red]Ошибка: Опция --pre-translate может использоваться только вместе с --use-llm.[/bold red]")
         raise typer.Exit(1)
-        
+
     console.print(f"▶️  Запуск создания глоссария для проекта [cyan]{project_dir.name}[/cyan]")
     
     project = Project(project_dir)
@@ -615,6 +619,7 @@ def build_markdown_from_inline(tokens: List[Token]) -> str:
 @app.command()
 def translate(project_dir: Path = typer.Argument(..., help="Путь к директории проекта.", exists=True)):
     """Запускает полный конвейер перевода для проекта."""
+    console.print(f"[dim]Polyglot-RPG v{__version__}[/dim]")
     console.print(f"▶️  Запуск конвейера перевода для проекта [cyan]{project_dir.name}[/cyan]")
     
     project = Project(project_dir)
@@ -744,6 +749,7 @@ def split_markdown(
 
     Metadata файл опционален. Используется только для marker output.
     """
+    console.print(f"[dim]Polyglot-RPG v{__version__}[/dim]")
     console.print("=" * 70)
     console.print("📖 [bold]РАЗДЕЛЕНИЕ MARKDOWN НА ГЛАВЫ[/bold]")
     console.print("=" * 70)
@@ -948,6 +954,7 @@ def proofread(
     ВАЖНО: Команда перезаписывает файлы в 4_final_chapters/. Рекомендуется
     сделать git commit перед запуском для возможности отката изменений.
     """
+    console.print(f"[dim]Polyglot-RPG v{__version__}[/dim]")
     console.print("=" * 70)
     console.print("📝 [bold]ВЫЧИТКА ПЕРЕВЕДЁННЫХ ТЕКСТОВ[/bold]")
     console.print("=" * 70)
