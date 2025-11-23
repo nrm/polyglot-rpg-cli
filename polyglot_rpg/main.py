@@ -17,6 +17,7 @@ import tiktoken
 import hashlib
 import subprocess
 import importlib.resources  # Для доступа к файлам данных внутри пакета
+import os
 from typing import List, Dict, Optional, Any
 
 from markdownify import markdownify as md_from_html
@@ -72,15 +73,28 @@ class Project:
 
 class TokenCounter:
     """Простой класс для подсчета токенов и оценки стоимости."""
-    def __init__(self, model_name: str = "gpt-4o"):
+    def __init__(self, model_name: str = "gpt-4o",
+                 price_per_1k_input: Optional[float] = None,
+                 price_per_1k_output: Optional[float] = None,
+                 currency: str = "$"):
         self.input_tokens = 0
         self.output_tokens = 0
         try:
             self.encoding = tiktoken.encoding_for_model(model_name)
         except KeyError:
             self.encoding = tiktoken.get_encoding("cl100k_base")
+
+        # Цены по умолчанию (GPT-4o в $ за 1M токенов)
         self.input_cost_per_m = 5.0
         self.output_cost_per_m = 15.0
+
+        # Если заданы кастомные цены (за 1K токенов), конвертируем в цену за 1M
+        if price_per_1k_input is not None:
+            self.input_cost_per_m = price_per_1k_input * 1000
+        if price_per_1k_output is not None:
+            self.output_cost_per_m = price_per_1k_output * 1000
+
+        self.currency = currency
 
     def _count(self, text: str) -> int:
         return len(self.encoding.encode(text, disallowed_special=()))
@@ -95,13 +109,17 @@ class TokenCounter:
         total_input_cost = (self.input_tokens / 1_000_000) * self.input_cost_per_m
         total_output_cost = (self.output_tokens / 1_000_000) * self.output_cost_per_m
         total_cost = total_input_cost + total_output_cost
-        
+
         console.print("\n[bold]📊 Статистика использования токенов[/bold]")
         console.print(f"Команда: [cyan]{command_name}[/cyan]")
         console.print(f"   Токены на вход (input):  [green]{self.input_tokens:,}[/green]")
         console.print(f"   Токены на выход (output): [green]{self.output_tokens:,}[/green]")
         console.print(f"   [bold]Итого токенов:[/bold]          [bold green]{(self.input_tokens + self.output_tokens):,}[/bold green]")
-        console.print(f"   [yellow]Примерная стоимость (GPT-4o):[/yellow] [bold yellow]${total_cost:.4f}[/bold yellow]")
+
+        if self.currency == "₽":
+            console.print(f"   [yellow]Примерная стоимость:[/yellow] [bold yellow]{total_cost:.2f}{self.currency}[/bold yellow]")
+        else:
+            console.print(f"   [yellow]Примерная стоимость (GPT-4o):[/yellow] [bold yellow]{self.currency}{total_cost:.4f}[/bold yellow]")
 
 class TranslationCache:
     """Управляет кэшированием переводов для экономии API вызовов."""
@@ -970,10 +988,28 @@ def proofread(
             console.print("[yellow]Подсказка: обновите конфиг из шаблона default_config_template.yaml[/yellow]")
             raise typer.Exit(1)
 
+        # Проверяем наличие настроек API для вычитки
+        if 'proofreading_api' not in config:
+            console.print("[bold red]❌ Ошибка: отсутствует секция 'proofreading_api' в 01_config.yaml[/bold red]")
+            console.print("[yellow]Подсказка: обновите конфиг из шаблона default_config_template.yaml[/yellow]")
+            raise typer.Exit(1)
+
         system_prompt = config['proofreading_settings']['system_prompt']
+        proofreading_api = config['proofreading_api']
+
+        # Получаем API ключ из переменной окружения
+        key_env_var = proofreading_api.get('key_env_var', 'YANDEX_API_KEY')
+        api_key = os.getenv(key_env_var)
+
+        if not api_key:
+            console.print(f"[bold red]❌ Ошибка: переменная окружения {key_env_var} не задана![/bold red]")
+            console.print(f"[yellow]Установите ключ API для вычитки:[/yellow]")
+            console.print(f"[yellow]  export {key_env_var}=your_api_key[/yellow]")
+            console.print(f"[yellow]или добавьте в ~/.bashrc (Linux/Mac) или используйте setx на Windows[/yellow]")
+            raise typer.Exit(1)
 
         # Получаем размер контекста и рассчитываем размер блока
-        context_length = config['api'].get('context_length', 8192)
+        context_length = proofreading_api.get('context_length', 8192)
         max_tokens_config = config['proofreading_settings'].get('max_tokens_per_block', 'auto')
 
         if max_tokens_config == 'auto' or max_tokens_config is None:
@@ -987,12 +1023,21 @@ def proofread(
         # Инициализируем компоненты
         glossary = Glossary(project.glossary_final_path)
         cache = ProofreadingCache(project.project_dir / ".cache")
-        token_counter = TokenCounter(config['api']['model'])
 
-        # Настройка OpenAI клиента
+        # Создаём TokenCounter с настройками цены для YandexGPT
+        price_input = proofreading_api.get('price_per_1k_input_tokens')
+        price_output = proofreading_api.get('price_per_1k_output_tokens')
+        token_counter = TokenCounter(
+            model_name=proofreading_api['model'],
+            price_per_1k_input=price_input,
+            price_per_1k_output=price_output,
+            currency="₽" if price_input is not None else "$"
+        )
+
+        # Настройка OpenAI клиента для proofreading API
         client = openai.OpenAI(
-            api_key=config['api']['key'],
-            base_url=config['api']['url'],
+            api_key=api_key,
+            base_url=proofreading_api['url'],
         )
 
         # Директории (in-place режим: input = output)
@@ -1103,12 +1148,12 @@ def proofread(
                 # Отправляем в LLM
                 try:
                     response = client.chat.completions.create(
-                        model=config['api']['model'],
+                        model=proofreading_api['model'],
                         messages=[
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_message_content}
                         ],
-                        temperature=config['api']['temperature']
+                        temperature=proofreading_api['temperature']
                     )
 
                     proofread_block = response.choices[0].message.content.strip()

@@ -62,6 +62,21 @@ glossary_settings:
     Example Output: {"Mage Hand": "Рука мага", "Stealth Check": "Проверка Скрытности"}
     </instruction>
 
+# --- Настройки API для команды proofread ---
+# Для вычитки можно использовать отдельную модель с большим контекстом.
+# key_env_var: Название переменной окружения с API ключом (например, YANDEX_API_KEY).
+# price_per_1k_input_tokens: Цена в рублях за 1000 входных токенов.
+# price_per_1k_output_tokens: Цена в рублях за 1000 выходных токенов.
+proofreading_api:
+  provider: yandex
+  url: http://llm.iaaras.lan:4000/v1
+  key_env_var: YANDEX_API_KEY
+  model: yandex/GPT-OSS-20B
+  temperature: 0.2
+  context_length: 128000
+  price_per_1k_input_tokens: 0.1
+  price_per_1k_output_tokens: 0.1
+
 # --- Настройки для команды proofread ---
 proofreading_settings:
   # Системный промпт для вычитки переведённого текста.

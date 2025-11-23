@@ -132,19 +132,50 @@ pytest tests/ --cov=polyglot_rpg  # with coverage
 
 The config file (`01_config.yaml`) contains:
 
-- **api**:
+- **api**: Settings for main translation API (e.g., local Ollama)
   - `url`: OpenAI-compatible API endpoint
   - `key`: API key (for Ollama usually 'ollama')
   - `model`: Model name (e.g., 'gemma3:27b')
   - `temperature`: Creativity level (0.0-0.2 for accurate translations)
   - `context_length`: Model's context window in tokens (e.g., 16384 for Ollama)
+
+- **proofreading_api**: Settings for proofreading API (can use different model with larger context)
+  - `url`: API endpoint (e.g., 'http://llm.iaaras.lan:4000/v1')
+  - `key_env_var`: Name of environment variable containing API key (e.g., 'YANDEX_API_KEY')
+  - `model`: Model name (e.g., 'yandex/GPT-OSS-20B')
+  - `temperature`: Temperature for proofreading (0.1-0.3 recommended)
+  - `context_length`: Context window in tokens (e.g., 128000 for YandexGPT)
+  - `price_per_1k_input_tokens`: Price in RUB per 1000 input tokens (e.g., 0.1)
+  - `price_per_1k_output_tokens`: Price in RUB per 1000 output tokens (e.g., 0.1)
+
 - **translation_settings**: System prompt for main translation
 - **glossary_settings**: Three prompts for extraction, filtering, and pre-translation stages
 - **proofreading_settings**:
   - `system_prompt`: Instructions for grammar/style checking
   - `max_tokens_per_block`: Block size for proofreading (default: auto = 30% of context_length)
 
-Template is in `/polyglot_rpg/default_config_template.yaml`. Default setup uses Ollama at `http://localhost:11434/v1` with `gemma3:27b` and 16384 context.
+Template is in `/polyglot_rpg/default_config_template.yaml`. Default setup uses Ollama at `http://localhost:11434/v1` with `gemma3:27b` for translation, and YandexGPT with 128K context for proofreading.
+
+### Setting up API keys for proofreading
+
+The proofreading command uses a separate API that requires authentication via environment variable:
+
+```bash
+# Linux/Mac - add to ~/.bashrc or ~/.zshrc
+export YANDEX_API_KEY=your_api_key_here
+
+# Or set temporarily for one session
+export YANDEX_API_KEY=your_api_key_here
+polyglot-rpg proofread my_project
+
+# Windows (PowerShell)
+$env:YANDEX_API_KEY="your_api_key_here"
+
+# Windows (CMD) - permanent
+setx YANDEX_API_KEY "your_api_key_here"
+```
+
+If the environment variable is not set, the `proofread` command will display an error with setup instructions.
 
 ## Key Implementation Details
 
