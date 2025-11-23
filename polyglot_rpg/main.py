@@ -18,6 +18,7 @@ import hashlib
 import subprocess
 import importlib.resources  # Для доступа к файлам данных внутри пакета
 import os
+import time
 from typing import List, Dict, Optional, Any
 
 from markdownify import markdownify as md_from_html
@@ -1145,31 +1146,47 @@ def proofread(
 
                 user_message_content = f"<data>\n{block}\n</data>{glossary_section}"
 
-                # Отправляем в LLM
-                try:
-                    response = client.chat.completions.create(
-                        model=proofreading_api['model'],
-                        messages=[
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_message_content}
-                        ],
-                        temperature=proofreading_api['temperature']
-                    )
+                # Отправляем в LLM с retry логикой для 429 ошибок
+                max_retries = 3
+                retry_delay = 5  # секунд
 
-                    proofread_block = response.choices[0].message.content.strip()
+                for attempt in range(max_retries):
+                    try:
+                        response = client.chat.completions.create(
+                            model=proofreading_api['model'],
+                            messages=[
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_message_content}
+                            ],
+                            temperature=proofreading_api['temperature']
+                        )
 
-                    # Считаем токены
-                    token_counter.add_input(system_prompt + user_message_content)
-                    token_counter.add_output(proofread_block)
+                        proofread_block = response.choices[0].message.content.strip()
 
-                    # Кешируем
-                    cache.set(block, proofread_block)
-                    proofread_blocks.append(proofread_block)
+                        # Считаем токены
+                        token_counter.add_input(system_prompt + user_message_content)
+                        token_counter.add_output(proofread_block)
 
-                except Exception as e:
-                    console.print(f"\n[yellow]⚠️  Ошибка при вычитке блока {i}: {e}[/yellow]")
-                    console.print(f"[yellow]   Использую оригинальный текст.[/yellow]")
-                    proofread_blocks.append(block)
+                        # Кешируем
+                        cache.set(block, proofread_block)
+                        proofread_blocks.append(proofread_block)
+                        break  # Успех - выходим из retry цикла
+
+                    except openai.RateLimitError as e:
+                        # 429 ошибка - все деплойменты заняты
+                        if attempt < max_retries - 1:
+                            console.print(f"\n[yellow]⚠️  Блок {i}: модель занята (429), повтор через {retry_delay} сек... (попытка {attempt + 1}/{max_retries})[/yellow]")
+                            time.sleep(retry_delay)
+                        else:
+                            console.print(f"\n[yellow]⚠️  Блок {i}: модель недоступна после {max_retries} попыток[/yellow]")
+                            console.print(f"[yellow]   Использую оригинальный текст.[/yellow]")
+                            proofread_blocks.append(block)
+
+                    except Exception as e:
+                        console.print(f"\n[yellow]⚠️  Ошибка при вычитке блока {i}: {e}[/yellow]")
+                        console.print(f"[yellow]   Использую оригинальный текст.[/yellow]")
+                        proofread_blocks.append(block)
+                        break  # Для других ошибок не делаем retry
 
             # Собираем вычитанный текст
             proofread_text = '\n\n'.join(proofread_blocks)
