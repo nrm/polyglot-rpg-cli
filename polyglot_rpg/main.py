@@ -966,6 +966,7 @@ def validate_split(
 @app.command()
 def proofread(
     project_dir: Path = typer.Argument(..., help="Директория проекта с переведёнными файлами."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Показывать детальную информацию о процессе вычитки"),
 ):
     """
     Вычитывает переведённые тексты на согласованность, стилистику и грамматику.
@@ -1052,6 +1053,18 @@ def proofread(
             base_url=proofreading_api['url'],
         )
 
+        # Выводим информацию о модели в verbose режиме
+        if verbose:
+            console.print("\n[bold cyan]🔧 Настройки API для вычитки:[/bold cyan]")
+            console.print(f"   URL: [cyan]{proofreading_api['url']}[/cyan]")
+            console.print(f"   Модель: [cyan]{proofreading_api['model']}[/cyan]")
+            console.print(f"   Контекст: [cyan]{context_length:,}[/cyan] токенов")
+            console.print(f"   Температура: [cyan]{proofreading_api['temperature']}[/cyan]")
+            console.print(f"   Размер блока: [cyan]{max_tokens_per_block:,}[/cyan] токенов")
+            if price_input is not None:
+                console.print(f"   Цена: [cyan]{price_input}₽[/cyan] за 1K input, [cyan]{price_output}₽[/cyan] за 1K output")
+            console.print()
+
         # Директории (in-place режим: input = output)
         input_dir = project.final_dir
         output_dir = input_dir
@@ -1131,6 +1144,8 @@ def proofread(
                 # Проверяем кеш
                 cached = cache.get(block)
                 if cached:
+                    if verbose:
+                        console.print(f"   💾 Блок {i}: из кеша")
                     proofread_blocks.append(cached)
                     continue
 
@@ -1177,6 +1192,16 @@ def proofread(
                         # Считаем токены
                         token_counter.add_input(system_prompt + user_message_content)
                         token_counter.add_output(proofread_block)
+
+                        # В verbose режиме показываем изменения
+                        if verbose and block != proofread_block:
+                            console.print(f"\n[bold yellow]📝 Блок {i} изменен:[/bold yellow]")
+                            # Показываем первые 100 символов оригинала и результата
+                            original_preview = block[:100].replace('\n', ' ')
+                            proofread_preview = proofread_block[:100].replace('\n', ' ')
+                            console.print(f"   [dim]Было:[/dim] {original_preview}...")
+                            console.print(f"   [dim]Стало:[/dim] {proofread_preview}...")
+                            console.print()
 
                         # Кешируем
                         cache.set(block, proofread_block)
