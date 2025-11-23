@@ -1014,10 +1014,21 @@ def proofread(
         max_tokens_config = config['proofreading_settings'].get('max_tokens_per_block', 'auto')
 
         if max_tokens_config == 'auto' or max_tokens_config is None:
-            # Автоматический расчёт: ~30% от контекста
-            # Оставляем место для системного промпта (~500), глоссария (~500), и ответа модели
-            max_tokens_per_block = int(context_length * 0.30)
-            console.print(f"[dim]ℹ️  Автоматический расчёт размера блока: {max_tokens_per_block} токенов (~30% от {context_length})[/dim]")
+            # Автоматический расчёт размера блока с учетом всех компонентов:
+            # 1. System prompt + глоссарий: ~1500 токенов
+            # 2. Входной текст блока: X токенов
+            # 3. Ответ модели (исправленный текст): ~X токенов (примерно как входной)
+            # 4. Резерв (10% контекста): для безопасности
+            #
+            # Формула: available = context_length * 0.9 - 1500
+            #          max_block = available / 2  (делим пополам для input и output)
+
+            system_and_glossary_reserve = 1500
+            available_tokens = int(context_length * 0.9 - system_and_glossary_reserve)
+            max_tokens_per_block = int(available_tokens / 2)
+
+            console.print(f"[dim]ℹ️  Автоматический расчёт размера блока: {max_tokens_per_block} токенов[/dim]")
+            console.print(f"[dim]   (контекст: {context_length}, резерв для промпта: {system_and_glossary_reserve}, запас: 10%)[/dim]")
         else:
             max_tokens_per_block = int(max_tokens_config)
 

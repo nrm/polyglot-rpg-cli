@@ -199,7 +199,11 @@ The tool parses Markdown into AST tokens rather than simple regex. This preserve
 
 1. **Token-based Splitting**: Text split into blocks by token count (not paragraph count)
    - Uses `tiktoken` for accurate token counting
-   - Block size: auto = 30% of `context_length` (configurable)
+   - Block size calculation: `(context_length * 0.9 - 1500) / 2` (configurable)
+     - Accounts for system prompt + glossary (~1500 tokens)
+     - Reserves 10% of context as safety margin
+     - Divides remaining space equally between input and output
+     - Example: 128K context → 56850 tokens per block
    - Preserves paragraph boundaries (never splits mid-paragraph)
 2. **Selective Glossary**: Only sends terms found in current block (not entire glossary)
 3. **Grammatical Gender Support**: For terms with `gender` field, adds separate section in prompt
